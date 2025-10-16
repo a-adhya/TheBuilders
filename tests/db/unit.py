@@ -1,17 +1,17 @@
 # TO RUN TESTS: PYTHONPATH=src poetry run python -m pytest tests/db/unit.py -q
 import pytest
 from unittest.mock import MagicMock, patch
-from src.db.garmentstore import Garment, GarmentType, MaterialType, MakeGarmentStore, GarmentAlreadyExists, GarmentValidationError, GarmentStoreError
+from src.db.garmentstore import Garment, Category, Material, MakeGarmentStore, GarmentAlreadyExists, GarmentValidationError, GarmentStoreError
 from datetime import datetime, timezone
 
 @pytest.fixture
 def sample_garment():
 	return Garment(
 		owner=1,
-		type=GarmentType.SHIRT,
+		category=Category.SHIRT,
 		color="#FFFFFF",
 		name="Test Shirt",
-		material=MaterialType.COTTON,
+		material=Material.COTTON,
 		image_url="/img/test.png",
 		created_at=datetime.now(timezone.utc),
 		id=None

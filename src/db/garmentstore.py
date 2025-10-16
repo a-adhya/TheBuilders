@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import IntEnum
 
 # --- Data Types ---
-class GarmentType(IntEnum):
+class Category(IntEnum):
     SHIRT = 1
     TSHIRT = 2
     JACKET = 3
@@ -24,7 +24,7 @@ class GarmentType(IntEnum):
     SHOES = 8
     ACCESSORY = 9
 
-class MaterialType(IntEnum):
+class Material(IntEnum):
     COTTON = 1
     DENIM = 2
     WOOL = 3
@@ -38,14 +38,14 @@ class MaterialType(IntEnum):
 class Garment:
     # User ID of garment owner
     owner: int
-    # Enumerated category of Garment, see GarmentType
-    type: GarmentType
+    # Enumerated category of Garment, see Category
+    category: Category
     # The hexcode for the color of this Garment, e.g "#A1B2C3"
     color: str
     # Human readable name, e.g "My Oxford Shirt"
     name: str
     # Primary material, see MaterialType
-    material: MaterialType
+    material: Material
     # Internal URL to image of garment
     image_url: str
     # UTC timestamp of upload time.
@@ -82,10 +82,10 @@ class _GarmentStore(GarmentStore):
         return Garment(
             id=row.id,
             owner=row.owner_id,
-            type=GarmentType(row.type),
+            category=Category(row.category),
             color=row.color_hex,
             name=row.name,
-            material=MaterialType(row.material),
+            material=Material(row.material),
             image_url=row.image_url,
             created_at=row.created_at,
         )
@@ -96,7 +96,7 @@ class _GarmentStore(GarmentStore):
         return GarmentRow(
             # id ignored so DB auto increments
             owner_id=garment.owner,
-            type=int(garment.type),
+            category=int(garment.category),
             material=int(garment.material),
             color_hex=garment.color,
             name=garment.name,

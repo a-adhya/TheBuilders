@@ -12,7 +12,7 @@ class GarmentRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     owner_id: Mapped[int] = mapped_column(Integer, nullable=False) 
-    type: Mapped[int] = mapped_column(Integer, nullable=False)
+    category: Mapped[int] = mapped_column(Integer, nullable=False)
     material: Mapped[int] = mapped_column(Integer, nullable=False)
     color_hex: Mapped[str] = mapped_column(String(7), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -22,7 +22,5 @@ class GarmentRow(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("type BETWEEN 1 AND 9", name="ck_garment_type_range"),
-        CheckConstraint("material BETWEEN 1 AND 8", name="ck_garment_material_range"),
         Index("ix_garments_owner_id", "owner_id"),
     )
