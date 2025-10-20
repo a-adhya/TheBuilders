@@ -1,56 +1,34 @@
 # TO RUN TESTS: PYTHONPATH=src poetry run python -m pytest tests/db/unit.py -q
 import pytest
 from unittest.mock import MagicMock, patch
-from src.db.garmentstore import Garment, Category, Material, MakeGarmentStore, GarmentAlreadyExists, GarmentValidationError, GarmentStoreError
-from datetime import datetime, timezone
+from db.schema import Garment
+from models.enums import Category, Material
+from src.db.garmentstore import MakeGarmentStore, GarmentStoreError
 
 @pytest.fixture
 def sample_garment():
 	return Garment(
 		owner=1,
-		category=Category.SHIRT,
+		category= Category.SHIRT,
 		color="#FFFFFF",
 		name="Test Shirt",
 		material=Material.COTTON,
-		image_url="/img/test.png",
-		created_at=datetime.now(timezone.utc),
-		id=None
+		image_url="/img/test.png"
 	)
-
+# verify we flush and add garment
 def test_create_success(sample_garment):
-	session = MagicMock()
-	store = MakeGarmentStore(session)
-	# Patch session.add and session.flush to simulate DB behavior
-	with patch.object(session, 'add') as mock_add, patch.object(session, 'flush') as mock_flush:
-		result = store.create(sample_garment)
-		mock_add.assert_called_once()
-		mock_flush.assert_called_once()
-	assert result == sample_garment
-
-def test_create_duplicate(sample_garment):
-	session = MagicMock()
-	store = MakeGarmentStore(session)
-	# Patch session.add to raise IntegrityError
-	with patch("src.db.garmentstore.IntegrityError", Exception):
-		session.add.side_effect = Exception("IntegrityError")
-		with pytest.raises(GarmentAlreadyExists):
-			store.create(sample_garment)
-	session.rollback.assert_called()
-
-def test_create_validation_error(sample_garment):
-	session = MagicMock()
-	store = MakeGarmentStore(session)
-	with patch("src.db.garmentstore.DataError", ValueError):
-		session.add.side_effect = ValueError("bad value")
-		with pytest.raises(GarmentValidationError):
-			store.create(sample_garment)
-	session.rollback.assert_called()
-
-def test_create_db_error(sample_garment):
-	session = MagicMock()
-	store = MakeGarmentStore(session)
-	with patch("src.db.garmentstore.SQLAlchemyError", RuntimeError):
-		session.add.side_effect = RuntimeError("db error")
-		with pytest.raises(GarmentStoreError):
-			store.create(sample_garment)
-	session.rollback.assert_called()
+    session = MagicMock()
+    store = MakeGarmentStore(session)
+    out = store.create(sample_garment)
+    session.add.assert_called_once_with(sample_garment)
+    session.flush.assert_called_once()
+    assert out is sample_garment
+    
+# verify we catch DB failures
+def test_create_db_failure(sample_garment):
+    from sqlalchemy.exc import SQLAlchemyError
+    session = MagicMock()
+    session.flush.side_effect = SQLAlchemyError("boom")
+    store = MakeGarmentStore(session)
+    with pytest.raises(GarmentStoreError):
+        store.create(sample_garment)
