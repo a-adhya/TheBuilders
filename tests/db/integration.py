@@ -3,7 +3,7 @@ import pytest
 from testcontainers.mysql import MySqlContainer
 
 from db.driver import create_tables, make_engine, make_session_factory, session_scope
-from db.garmentstore import MakeGarmentStore
+from db.garment_store import MakeGarmentStore
 from tests.db.util import generate_random_garment
 
 

@@ -30,10 +30,8 @@ class _GarmentStore(GarmentStore):
     def create(self, garment: Garment) -> Garment:
         try:
             self._session.add(garment)
-            print("here 2")
             # must flush to get assigned ID (force transaction through)
             self._session.flush()
-            print("here 3")
         except SQLAlchemyError as e:
             self._session.rollback()
             raise GarmentStoreError("database error") from e

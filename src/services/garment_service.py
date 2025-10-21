@@ -1,6 +1,6 @@
 from typing import Protocol
 from api.schema import CreateGarmentRequest, CreateGarmentResponse
-from db.garmentstore import MakeGarmentStore
+from db.garment_store import MakeGarmentStore
 from db.driver import session_scope
 from db.schema import Garment
 

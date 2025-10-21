@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from db.schema import Garment
 from models.enums import Category, Material
-from src.db.garmentstore import MakeGarmentStore, GarmentStoreError
+from db.garment_store import MakeGarmentStore, GarmentStoreError
 
 
 @pytest.fixture
