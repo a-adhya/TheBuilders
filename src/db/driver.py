@@ -11,10 +11,12 @@ def make_engine(url: str, *, echo: bool = False) -> Engine:
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:
-    return sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    return sessionmaker(bind=engine, expire_on_commit=False, future=True)
+
 
 def create_tables(engine: Engine) -> None:
     Base.metadata.create_all(engine)
+
 
 @contextmanager
 def session_scope(session_factory: sessionmaker[Session]) -> Iterator[Session]:

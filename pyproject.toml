@@ -12,7 +12,8 @@ dependencies = [
     "pytest (>=8.4.2,<9.0.0)",
     "testcontainers (>=4.13.2,<5.0.0)",
     "pymysql (>=1.0.2,<2.0.0)",
-    "uvicorn (>=0.24.0,<1.0.0)"
+    "uvicorn (>=0.24.0,<1.0.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
 packages = [{ include = "*", from = "src" }]
 

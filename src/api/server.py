@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 from api.schema import CreateGarmentRequest, CreateGarmentResponse
-from db.driver import make_engine, make_session_factory, create_tables, session_scope
-from db.garmentstore import MakeGarmentStore
+from api.validate import validate_create_garment_request
+from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
+from fastapi import Depends
+from services.garment_service import GarmentService, DbGarmentService
 
 from sqlalchemy.exc import OperationalError
 
@@ -15,6 +16,7 @@ DATABASE_URL = "mysql+pymysql://apiuser:apipass@127.0.0.1:3306/testdb"
 # We'll create the engine and session factory at startup so failures are surfaced clearly.
 engine = None
 SessionFactory = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,8 +40,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+def get_garment_service() -> GarmentService:
+    return DbGarmentService(SessionFactory)
+
+
 @app.post("/create_garment", response_model=CreateGarmentResponse, status_code=201)
-def create_garment(payload: CreateGarmentRequest):
+def create_garment(
+    payload: CreateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
+):
+    validate_create_garment_request(payload)
     garment = Garment(
         owner=payload.owner,
         category=payload.category,
@@ -48,20 +58,10 @@ def create_garment(payload: CreateGarmentRequest):
         material=payload.material,
         image_url=payload.image_url,
     )
-    
+
     try:
-        with session_scope(SessionFactory) as s:
-            store = MakeGarmentStore(s)
-            out = store.create(garment)
-            return CreateGarmentResponse(
-                owner=out.owner,
-                category=int(out.category),
-                color=out.color,
-                name=out.name,
-                material=int(out.material),
-                image_url=out.image_url,
-                id=out.id,
-                created_at=out.created_at,
-            )
-    except Exception:
+        out = svc.create(garment)
+        return out
+    except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail="internal error")

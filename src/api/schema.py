@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from models.enums import Category, Material
 
+
 class CreateGarmentRequest(BaseModel):
     owner: int
     category: Category
@@ -10,6 +11,7 @@ class CreateGarmentRequest(BaseModel):
     name: str
     material: Material
     image_url: str
+
 
 class CreateGarmentResponse(CreateGarmentRequest):
     id: int

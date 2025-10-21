@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 class Category(IntEnum):
     SHIRT = 1
     TSHIRT = 2
@@ -10,6 +11,7 @@ class Category(IntEnum):
     SHORTS = 7
     SHOES = 8
     ACCESSORY = 9
+
 
 class Material(IntEnum):
     COTTON = 1
