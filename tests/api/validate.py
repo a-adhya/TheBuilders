@@ -14,6 +14,7 @@ def base_req():
         "name": "Valid Shirt",
         "material": 1,
         "image_url": "/img/x.png",
+        "dirty": False,
     }
 
 

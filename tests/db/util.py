@@ -19,5 +19,5 @@ def generate_random_garment(
     clr = color or "#" + "".join(random.choice("0123456789ABCDEF") for _ in range(6))
     img = image_url or f"https://example.test/img/{nm}.jpg"
     return Garment(
-        owner=owner, category=ct, color=clr, name=nm, material=mt, image_url=img
+        owner=owner, category=ct, color=clr, name=nm, material=mt, image_url=img, dirty=False
     )

@@ -45,6 +45,7 @@ def test_create_garment(session_factory):
         assert output.name == input.name
         assert output.material == input.material
         assert output.image_url == input.image_url
+        assert output.dirty == input.dirty
 
         # verify DB populated fields
         assert output.id is not None

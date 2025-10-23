@@ -11,6 +11,7 @@ class CreateGarmentRequest(BaseModel):
     name: str
     material: Material
     image_url: str
+    dirty: bool
 
 
 class CreateGarmentResponse(CreateGarmentRequest):

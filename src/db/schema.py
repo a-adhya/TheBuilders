@@ -1,6 +1,6 @@
 # db/schema.py
 from datetime import datetime
-from sqlalchemy import Enum, String, Integer, DateTime, func, Index
+from sqlalchemy import Boolean, Enum, String, Integer, DateTime, func, Index, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from models.enums import Category, Material
 
@@ -19,6 +19,9 @@ class Garment(Base):
     color: Mapped[str] = mapped_column(String(7), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     image_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    dirty: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

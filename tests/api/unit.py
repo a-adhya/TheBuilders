@@ -31,7 +31,8 @@ def test_create_garment_unit():
         "color": "#000000",
         "name": "Unit Shirt",
         "material": 1,
-        "image_url": "/img/x.png"
+        "image_url": "/img/x.png",
+        "dirty": False,
     }
 
     resp = client.post("/create_garment", json=payload)

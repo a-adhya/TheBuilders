@@ -39,5 +39,6 @@ class DbGarmentService:
                 color=persisted.color,
                 name=persisted.name,
                 image_url=persisted.image_url,
+                dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )

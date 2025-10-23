@@ -57,6 +57,7 @@ def create_garment(
         name=payload.name,
         material=payload.material,
         image_url=payload.image_url,
+        dirty=payload.dirty,
     )
 
     try:

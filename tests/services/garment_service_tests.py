@@ -23,6 +23,7 @@ def test_db_garment_service_persists(sqlite_session_factory):
         name="Integration",
         material=1,
         image_url="/img/int.png",
+        dirty=False,
     )
 
     out = svc.create(req)
@@ -32,3 +33,4 @@ def test_db_garment_service_persists(sqlite_session_factory):
     assert out.name == "Integration"
     assert out.color.upper() == "#112233"
     assert out.owner == 1
+    assert out.dirty == False
