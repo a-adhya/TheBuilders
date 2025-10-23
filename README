@@ -1,0 +1,67 @@
+# Backend & Code Architecture
+
+## Running the App
+
+To run the app, you must run a **local MySQL container** and the **API server** provided via a FastAPI app.
+
+### 1. Set up the Docker container
+Run the following command from the repo root (ensure you have a Docker daemon running):
+
+```bash
+docker-compose up -d
+```
+
+### 2. Run the API server
+Start the FastAPI app locally:
+
+```bash
+PYTHONPATH=src poetry run uvicorn api.server:app --reload --host 127.0.0.1 --port 8000
+```
+
+Once started, the API server will be accessible at:
+
+**http://127.0.0.1:8000/**
+
+---
+
+## Code  Architecture
+
+We divide the backend into separate layers — **API**, **Service**, and **DB**.  
+Each layer maintains a single responsibility; this architecture was chosen to keep code easy to test and reason about.
+
+---
+
+### **1. API Layer**
+The API Layer handles receiving requests and validating them.  
+An example of this is:
+
+>“The API layer should catch when a given color submitted is not a valid hex string.”
+
+---
+
+### **2. Service Layer**
+The API uses services to carry out core business logic.  
+Note, “services” are merely an interface and do not indicate a separate machine.  
+Business logic encompasses the “core” of what any given method should do.  
+
+An example of this is:
+
+>“When we tell the `GarmentService` to create a garment, it should handle persisting the garment info to the DB and the image to the blob storage.”
+
+---
+
+### **3. DB Layer**
+The last layer is the DB logic, which handles the actual retrieval and persistence of data.  
+An example of this is:
+
+>“The DB layer should interact with MySQL to persist data.”
+
+### **4. Whole Flow Tied Together**
+
+> "When a user wants to create a garment, the API receives the request and validates it. This is then sent to the Garment Service which handles coordinating the business logic (persisting the data to MySQL and Blob Storage). The Garment Service relies on the DB layer to handle the abstraction of actually persisting data to some data store."
+
+---
+
+## Code Architecture Diagram
+
+![Architecture Diagram](architecture.png)
