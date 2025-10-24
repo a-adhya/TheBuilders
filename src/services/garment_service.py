@@ -1,5 +1,5 @@
 from typing import Protocol
-from api.schema import CreateGarmentRequest, CreateGarmentResponse
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest
 from db.garment_store import MakeGarmentStore
 from db.driver import session_scope
 from db.schema import Garment
@@ -7,6 +7,7 @@ from db.schema import Garment
 
 class GarmentService(Protocol):
     def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse: ...
+    def update(self, id: int, req: UpdateGarmentRequest) -> CreateGarmentResponse: ...
 
 
 class DbGarmentService:
@@ -30,6 +31,44 @@ class DbGarmentService:
                 image_url=req.image_url,
             )
             persisted = store.create(garment)
+
+            return CreateGarmentResponse(
+                id=persisted.id,
+                owner=persisted.owner,
+                category=persisted.category,
+                material=persisted.material,
+                color=persisted.color,
+                name=persisted.name,
+                image_url=persisted.image_url,
+                dirty=persisted.dirty,
+                created_at=persisted.created_at,
+            )
+    
+    def update(self, id: int, req: UpdateGarmentRequest) -> CreateGarmentResponse:
+        with session_scope(self._session_factory) as s:
+            store = MakeGarmentStore(s)
+            garment = store.get(id)
+            if garment is None:
+                # service-level not-found signal
+                raise ValueError("garment not found")
+
+            # update only provided fields
+            if req.owner is not None:
+                garment.owner = req.owner
+            if req.category is not None:
+                garment.category = req.category
+            if req.material is not None:
+                garment.material = req.material
+            if req.color is not None:
+                garment.color = req.color
+            if req.name is not None:
+                garment.name = req.name
+            if req.image_url is not None:
+                garment.image_url = req.image_url
+            if req.dirty is not None:
+                garment.dirty = req.dirty
+
+            persisted = store.update(garment)
 
             return CreateGarmentResponse(
                 id=persisted.id,
