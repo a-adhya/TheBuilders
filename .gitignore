@@ -56,3 +56,18 @@ logs/
 # --- Tooling artifacts ---
 # If you use Docker Compose locally and generate override files
 docker-compose.override.yml
+
+# Xcode / Swift
+**/DerivedData/
+**/build/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.DS_Store
+
+# Swift Package Manager
+**/.build/
+**/Package.resolved
+
+# CocoaPods
+Pods/
