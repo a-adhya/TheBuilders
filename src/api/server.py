@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse
-from api.validate import validate_create_garment_request
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest
+from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
@@ -63,6 +63,22 @@ def create_garment(
     try:
         out = svc.create(garment)
         return out
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+    
+@app.patch("/garments/{id}", response_model=CreateGarmentResponse)
+def update_garment(
+    id: int, payload: UpdateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
+):
+    # validate partial fields
+    validate_update_garment_request(payload)
+    try:
+        out = svc.update(id, payload)
+        return out
+    except ValueError:
+        # not found
+        raise HTTPException(status_code=404, detail="garment not found")
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

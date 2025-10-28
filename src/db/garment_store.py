@@ -11,6 +11,8 @@ from .schema import Garment
 
 class GarmentStore(Protocol):
     def create(self, garment: Garment) -> Garment: ...
+    def get(self, id: int) -> Garment | None: ...
+    def update(self, garment: Garment) -> Garment: ...
 
 
 # --- Error Types ---
@@ -31,6 +33,18 @@ class _GarmentStore(GarmentStore):
         try:
             self._session.add(garment)
             # must flush to get assigned ID (force transaction through)
+            self._session.flush()
+        except SQLAlchemyError as e:
+            self._session.rollback()
+            raise GarmentStoreError("database error") from e
+        return garment
+
+    def get(self, id: int) -> Garment | None:
+        # simple session.get by primary key
+        return self._session.get(Garment, id)
+    
+    def update(self, garment: Garment) -> Garment:
+        try:
             self._session.flush()
         except SQLAlchemyError as e:
             self._session.rollback()
