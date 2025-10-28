@@ -20,6 +20,25 @@ class FakeService:
         self.created.append(req)
         return req
 
+    def list_by_owner(self, owner: int):
+        # return some fake garments for owner
+        out = []
+        if owner == 1:
+            out.append(
+                CreateGarmentResponse(
+                    id=1,
+                    owner=1,
+                    category=1,
+                    material=1,
+                    color="#000000",
+                    name="Unit Shirt",
+                    image_url="/img/x.png",
+                    dirty=False,
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
+        return out
+
 def test_create_garment_unit():
     fake = FakeService()
     # override the dependency used by the app
@@ -44,4 +63,24 @@ def test_create_garment_unit():
     assert body["name"] == "Unit Shirt"
     assert body["owner"] == 1
     # cleanup dependency overrides
+    app.dependency_overrides.clear()
+
+
+def test_get_wardrobe_missing_user_id():
+    # ensure endpoint requires user_id
+    resp = client.get("/api/item/get")
+    assert resp.status_code == 400
+
+
+def test_get_wardrobe_by_user():
+    fake = FakeService()
+    app.dependency_overrides[get_garment_service] = lambda: fake
+
+    resp = client.get("/api/item/get?user_id=1")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["owner"] == 1
+    assert body[0]["name"] == "Unit Shirt"
     app.dependency_overrides.clear()

@@ -7,6 +7,7 @@ from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
+from typing import List, Optional
 
 from sqlalchemy.exc import OperationalError
 
@@ -66,3 +67,44 @@ def create_garment(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
+
+# Get Clothing Items
+
+# Endpoint: /api/item/get
+# Method: GET
+# Description: Retrieve clothing items (optionally filtered by user, tag, item type).
+# Example Request:
+# GET /api/item/get?user_id=5&type=top
+# Example Response:
+# {
+#   "items": [
+#     <clothing object>,
+#     ...
+#   ]
+# }
+# Response Codes:
+# 200 – Success
+# 404 – No items found
+# 401 – Unauthorized
+
+@app.get("/api/item/get", response_model=List[CreateGarmentResponse], status_code=200)
+def getWardrobe(user_id: Optional[int] = None, svc: GarmentService = Depends(get_garment_service)):
+    """
+    Retrieve clothing items filtered by user id.
+
+    Query parameters:
+    - user_id (int): required. Returns all garments owned by the user.
+    """
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="user_id query parameter is required")
+
+    try:
+        items = svc.list_by_owner(user_id)
+        if not items:
+            # return empty list with 200 (client can interpret no items)
+            return []
+        return items
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+

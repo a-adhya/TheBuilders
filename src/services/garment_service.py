@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, List
 from api.schema import CreateGarmentRequest, CreateGarmentResponse
 from db.garment_store import MakeGarmentStore
 from db.driver import session_scope
@@ -7,6 +7,7 @@ from db.schema import Garment
 
 class GarmentService(Protocol):
     def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse: ...
+    def list_by_owner(self, owner: int) -> List[CreateGarmentResponse]: ...
 
 
 class DbGarmentService:
@@ -42,3 +43,25 @@ class DbGarmentService:
                 dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )
+
+    def list_by_owner(self, owner: int):
+        with session_scope(self._session_factory) as s:
+            store = MakeGarmentStore(s)
+            garments = store.list_by_owner(owner)
+
+            out = []
+            for g in garments:
+                out.append(
+                    CreateGarmentResponse(
+                        id=g.id,
+                        owner=g.owner,
+                        category=g.category,
+                        material=g.material,
+                        color=g.color,
+                        name=g.name,
+                        image_url=g.image_url,
+                        dirty=g.dirty,
+                        created_at=g.created_at,
+                    )
+                )
+            return out
