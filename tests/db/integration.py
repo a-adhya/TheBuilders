@@ -50,3 +50,26 @@ def test_create_garment(session_factory):
         # verify DB populated fields
         assert output.id is not None
         assert output.created_at is not None
+
+
+def test_update_garment(session_factory):
+    """Verify that updating a persisted garment via the store persists changes."""
+    with session_scope(session_factory) as s:
+        store = MakeGarmentStore(s)
+
+        # create an input garment and persist it
+        input = generate_random_garment(owner=321)
+        output = store.create(input)
+
+        # modify a couple fields on the persistent object
+        output.name = "Integration Updated"
+        output.color = "#778899"
+
+        # call update (store.update flushes changes)
+        store.update(output)
+
+        # re-load and verify changes
+        refreshed = store.get(output.id)
+        assert refreshed is not None
+        assert refreshed.name == "Integration Updated"
+        assert refreshed.color == "#778899"
