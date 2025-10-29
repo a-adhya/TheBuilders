@@ -4,6 +4,7 @@ from typing import Optional
 from typing import List
 
 from models.enums import Category, Material
+from db.schema import Garment
 
 
 class CreateGarmentRequest(BaseModel):
@@ -58,3 +59,11 @@ class UpdateGarmentRequest(BaseModel):
     material: Optional[Material] = None
     image_url: Optional[str] = None
     dirty: Optional[bool] = None
+
+
+class GenerateOutfitRequest(BaseModel):
+    optional_string: Optional[str] = None
+
+
+class GenerateOutfitResponse(BaseModel):
+    garments: list[Garment]
