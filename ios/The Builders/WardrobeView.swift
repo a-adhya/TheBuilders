@@ -13,6 +13,7 @@ struct WardrobeView: View {
     @State private var showLaundry = false
     @State private var selectedIndex = 0
     @State private var showingAddItem = false
+    @State private var displayedItems: [ClothingItem] = []
     
     let categories = ClothingItem.Category.allCases.map { $0.rawValue }
     
@@ -37,28 +38,35 @@ struct WardrobeView: View {
             }
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
+            .task { await refreshItems() }
         }
         .sheet(isPresented: $showingAddItem) {
             AddClothingItemView()
+        }
+        .onChange(of: showLaundry) { _, _ in
+            Task { await refreshItems() }
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            Task { await refreshItems() }
         }
     }
     
     // MARK: - Private Views
     
     private var laundryToggleSection: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text("View Laundry")
                 .font(.title3)
                 .fontWeight(.medium)
                 .foregroundColor(.purple)
-            
-            Spacer()
-            
+
+            Spacer(minLength: 0)
+
             Toggle("", isOn: $showLaundry)
                 .labelsHidden()
         }
         .padding(.horizontal, 20)
-        .padding(.top, 20)
+        .padding(.top, 12)
     }
     
     private var clothingItemsGrid: some View {
@@ -66,17 +74,73 @@ struct WardrobeView: View {
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 20) {
-                ForEach(wardrobeManager.getItems(for: selectedCategory)) { item in
-                    ClothingItemCard(
-                        item: item,
-                        showLaundry: showLaundry,
-                        wardrobeManager: wardrobeManager
-                    )
+            ], spacing: 16) {
+                ForEach(displayedItems) { item in
+                    ZStack {
+                        ClothingItemCard(
+                            item: item,
+                            showLaundry: showLaundry,
+                            wardrobeManager: wardrobeManager
+                        )
+
+                        VStack {
+                            HStack {
+                                Spacer()
+                                if showLaundry {
+                                    // Restore from laundry button (top-right)
+                                    Button(action: {
+                                        Task {
+                                            await wardrobeManager.returnFromLaundry(itemId: item.id)
+                                            await refreshItems()
+                                        }
+                                    }) {
+                                        Image(systemName: "arrow.uturn.left")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.purple)
+                                            .padding(8)
+                                            .background(
+                                                Circle().fill(Color.white)
+                                                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                            )
+                                    }
+                                } else {
+                                    // Send to laundry button (top-right)
+                                    Button(action: {
+                                        Task {
+                                            await wardrobeManager.sendToLaundry(itemId: item.id)
+                                            await refreshItems()
+                                        }
+                                    }) {
+                                        Image(systemName: "basket.fill")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.gray)
+                                            .padding(8)
+                                            .background(
+                                                Circle().fill(Color.white)
+                                                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                            )
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(8)
+                    }
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 16)
+        }
+    }
+
+    // MARK: - Data Loading
+    private func refreshItems() async {
+        if showLaundry {
+            // Only laundry items in the selected category
+            let allLaundry = await wardrobeManager.getLaundryItems()
+            displayedItems = allLaundry.filter { $0.category == selectedCategory }
+        } else {
+            displayedItems = await wardrobeManager.getAvailableItems(for: selectedCategory)
         }
     }
     
