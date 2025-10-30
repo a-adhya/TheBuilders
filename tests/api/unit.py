@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, ListByOwnerResponse
 from api.server import app, get_garment_service
 from db.schema import Garment
 
@@ -47,7 +47,6 @@ class FakeService:
         return CreateGarmentResponse(**rec)
     
     def list_by_owner(self, owner: int):
-        # return some fake garments for owner
         out = []
         if owner == 1:
             out.append(
@@ -61,9 +60,9 @@ class FakeService:
                     image_url="/img/x.png",
                     dirty=False,
                     created_at=datetime.now(timezone.utc),
-                )
+                ).dict()
             )
-        return out
+        return ListByOwnerResponse(garments=out)
 
 def test_create_garment_unit():
     fake = FakeService()
@@ -122,8 +121,9 @@ def test_get_wardrobe_by_user():
     resp = client.get("/api/item/get?user_id=1")
     assert resp.status_code == 200
     body = resp.json()
-    assert isinstance(body, list)
-    assert len(body) == 1
-    assert body[0]["owner"] == 1
-    assert body[0]["name"] == "Unit Shirt"
+    assert "garments" in body
+    assert isinstance(body["garments"], list)
+    assert len(body["garments"]) == 1
+    assert body["garments"][0]["owner"] == 1
+    assert body["garments"][0]["name"] == "Unit Shirt"
     app.dependency_overrides.clear()

@@ -15,9 +15,22 @@ class CreateGarmentRequest(BaseModel):
     image_url: str
     dirty: bool
 
-class CreateGarmentResponse(CreateGarmentRequest):
+
+# Generic garment response model
+class GarmentResponse(BaseModel):
     id: int
+    owner: int
+    category: Category
+    color: str
+    name: str
+    material: Material
+    image_url: str
+    dirty: bool
     created_at: datetime
+
+# CreateGarmentResponse reuses GarmentResponse
+class CreateGarmentResponse(GarmentResponse):
+    pass
 
 
 # Generic garment response model

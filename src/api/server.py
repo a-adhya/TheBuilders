@@ -1,13 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse
 from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
 from typing import List, Optional
+from models.enums import Category
 
 from sqlalchemy.exc import OperationalError
 
@@ -104,8 +105,8 @@ def update_garment(
 # 404 – No items found
 # 401 – Unauthorized
 
-@app.get("/api/item/get", response_model=List[CreateGarmentResponse], status_code=200)
-def getWardrobe(user_id: Optional[int] = None, svc: GarmentService = Depends(get_garment_service)):
+@app.get("/api/item/get", response_model=ListByOwnerResponse, status_code=200)
+def getWardrobe(user_id: Optional[int] = None, category: Optional[Category] = None, svc: GarmentService = Depends(get_garment_service)):
     """
     Retrieve clothing items filtered by user id.
 
@@ -116,11 +117,11 @@ def getWardrobe(user_id: Optional[int] = None, svc: GarmentService = Depends(get
         raise HTTPException(status_code=400, detail="user_id query parameter is required")
 
     try:
-        items = svc.list_by_owner(user_id)
-        if not items:
-            # return empty list with 200 (client can interpret no items)
-            return []
-        return items
+        response = svc.list_by_owner(user_id)
+        if not response.garments:
+            # return empty response with 200
+            return ListByOwnerResponse(garments=[], category = category)
+        return response
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
