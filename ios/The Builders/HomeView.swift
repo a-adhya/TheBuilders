@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import Combine
 
 struct HomeView: View {
+    @StateObject private var viewModel = WeatherViewModel()
     var body: some View {
         VStack(spacing: 0) {
             // Main content area
@@ -107,64 +109,82 @@ struct HomeView: View {
                                 .stroke(Color.purple.opacity(0.3), lineWidth: 2)
                         )
                         .overlay(
-                            VStack(spacing: 12) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Clear.")
-                                            .font(.title3)
-                                            .fontWeight(.medium)
-                                        
-                                        HStack {
-                                            // Sun icon
-                                            Image(systemName: "sun.max.fill")
-                                                .foregroundColor(.orange)
-                                                .font(.title2)
+                            Group {
+                                if let w = viewModel.weather {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("\(w.condition).")
+                                                .font(.title3)
+                                                .fontWeight(.medium)
                                             
-                                            VStack(alignment: .leading) {
-                                                Text("51°F")
-                                                    .font(.title)
-                                                    .fontWeight(.bold)
-                                                Text("Feels 46°F")
-                                                    .font(.caption)
+                                            HStack {
+                                                Image(systemName: w.temperatureF >= 70 ? "sun.max.fill" : "cloud.sun.fill")
+                                                    .foregroundColor(.orange)
+                                                    .font(.title2)
+                                                
+                                                VStack(alignment: .leading) {
+                                                    Text("\(w.temperatureF)°F")
+                                                        .font(.title)
+                                                        .fontWeight(.bold)
+                                                    Text("Feels \(w.feelsLikeF)°F")
+                                                        .font(.caption)
+                                                        .foregroundColor(.gray)
+                                                }
+                                            }
+                                            
+                                            Text("\(w.highF)°f \(w.lowF)°f")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        VStack(alignment: .trailing, spacing: 8) {
+                                            HStack {
+                                                Image(systemName: "wind")
                                                     .foregroundColor(.gray)
+                                                Text("Wind \(w.windMph)mph")
+                                                    .font(.caption)
+                                            }
+                                            
+                                            HStack {
+                                                Image(systemName: "drop")
+                                                    .foregroundColor(.blue)
+                                                Text("Humidity \(w.humidityPct)%")
+                                                    .font(.caption)
+                                            }
+                                            
+                                            HStack {
+                                                Image(systemName: "sunset")
+                                                    .foregroundColor(.orange)
+                                                Text("Sunset \(w.sunset)")
+                                                    .font(.caption)
+                                            }
+                                            
+                                            HStack {
+                                                Image(systemName: "moon.fill")
+                                                    .foregroundColor(.black)
+                                                Text(w.moonPhase)
+                                                    .font(.caption)
                                             }
                                         }
-                                        
-                                        Text("53°f 39°f")
+                                    }
+                                } else if viewModel.isLoading {
+                                    HStack {
+                                        ProgressView()
+                                        Text("Fetching weather...")
                                             .font(.caption)
                                             .foregroundColor(.gray)
+                                        Spacer()
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    VStack(alignment: .trailing, spacing: 8) {
-                                        HStack {
-                                            Image(systemName: "wind")
-                                                .foregroundColor(.gray)
-                                            Text("Wind 7mph")
-                                                .font(.caption)
-                                        }
-                                        
-                                        HStack {
-                                            Image(systemName: "drop")
-                                                .foregroundColor(.blue)
-                                            Text("Feels dry")
-                                                .font(.caption)
-                                        }
-                                        
-                                        HStack {
-                                            Image(systemName: "sunset")
-                                                .foregroundColor(.orange)
-                                            Text("Sunset 5:22")
-                                                .font(.caption)
-                                        }
-                                        
-                                        HStack {
-                                            Image(systemName: "moon.fill")
-                                                .foregroundColor(.black)
-                                            Text("Waning crescent")
-                                                .font(.caption)
-                                        }
+                                } else if let err = viewModel.errorMessage {
+                                    HStack {
+                                        Image(systemName: "exclamationmark.triangle")
+                                            .foregroundColor(.orange)
+                                        Text(err)
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                        Spacer()
                                     }
                                 }
                             }
@@ -179,6 +199,7 @@ struct HomeView: View {
         }
         .background(Color(.systemGray6))
         .ignoresSafeArea(.all, edges: .top)
+    .task { await viewModel.load() }
     }
 }
 
