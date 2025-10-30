@@ -1,5 +1,5 @@
 //
-//  ClothingItem.swift
+//  ModelsClothingItem.swift  
 //  The Builders
 //
 //  Created by Cassie Liu on 10/28/25.
@@ -25,3 +25,4 @@ struct ClothingItem: Identifiable, Equatable {
         case accessories = "Accessories"
     }
 }
+

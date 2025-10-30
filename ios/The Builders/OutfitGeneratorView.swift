@@ -142,7 +142,7 @@ struct OutfitGeneratorView: View {
                     
                     // Generate Outfit Button
                     Button(action: {
-                        // keyboard
+                        // Dismiss keyboard before generating outfit
                         focusedField = nil
                         // TODO: Implement outfit generation logic
                         print("Generate outfit tapped")
@@ -167,7 +167,7 @@ struct OutfitGeneratorView: View {
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
             .onTapGesture {
-                // 点击背景收起键盘
+                // Dismiss keyboard when tapping the background
                 focusedField = nil
             }
         }
@@ -222,3 +222,4 @@ struct Triangle: Shape {
 #Preview {
     OutfitGeneratorView()
 }
+
