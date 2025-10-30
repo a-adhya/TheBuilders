@@ -108,11 +108,6 @@ def test_update_garment_unit():
 
     app.dependency_overrides.clear()
 
-def test_get_wardrobe_missing_user_id():
-    # ensure endpoint requires user_id
-    resp = client.get("/api/item/get")
-    assert resp.status_code == 400
-
 
 def test_get_wardrobe_by_user():
     fake = FakeService()

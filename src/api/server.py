@@ -106,13 +106,14 @@ def update_garment(
 # 401 – Unauthorized
 
 @app.get("/api/item/get", response_model=ListByOwnerResponse, status_code=200)
-def getWardrobe(user_id: Optional[int] = None, category: Optional[Category] = None, svc: GarmentService = Depends(get_garment_service)):
+def getWardrobe(user_id: int, category: Optional[Category] = None, svc: GarmentService = Depends(get_garment_service)):
     """
     Retrieve clothing items filtered by user id.
 
     Query parameters:
     - user_id (int): required. Returns all garments owned by the user.
     """
+
     if user_id is None:
         raise HTTPException(status_code=400, detail="user_id query parameter is required")
 
