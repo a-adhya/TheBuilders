@@ -73,3 +73,27 @@ def test_update_garment(session_factory):
         assert refreshed is not None
         assert refreshed.name == "Integration Updated"
         assert refreshed.color == "#778899"
+
+    def test_list_by_owner_returns_garments(session_factory):
+        """Verify GarmentStore.list_by_owner returns garments for a given owner."""
+        from db.schema import Garment
+        from models.enums import Category, Material
+
+        test_owner = 4242
+
+        with session_scope(session_factory) as s:
+            store = MakeGarmentStore(s)
+            g = Garment(
+                owner=test_owner,
+                category=Category.SHIRT,
+                material=Material.COTTON,
+                color="#ABCDEF",
+                name="Integration Shirt",
+                image_url="/img/int.png",
+                dirty=False,
+            )
+            store.create(g)
+
+            garments = store.list_by_owner(test_owner)
+            assert isinstance(garments, list)
+            assert any(item.name == "Integration Shirt" for item in garments)

@@ -13,6 +13,20 @@ class FakeService:
     """Fake GarmentService used for unit tests."""
     def __init__(self):
         self.created = []
+         # for update test: a simple in-memory dict
+        self.store = {
+            1: {
+                "id": 1,
+                "owner": 1,
+                "category": 1,
+                "color": "#000000",
+                "name": "Unit Shirt",
+                "material": 1,
+                "image_url": "/img/x.png",
+                "dirty": False,
+                "created_at": datetime.now(timezone.utc),
+            }
+        }
 
     def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse:
         req.id = len(self.created) + 1
@@ -20,6 +34,18 @@ class FakeService:
         self.created.append(req)
         return req
 
+    def update(self, id: int, req):
+        if id not in self.store:
+            raise ValueError("not found")
+        rec = self.store[id]
+        # update only provided fields (pydantic model will have attributes)
+        for field in ["owner", "category", "color", "name", "material", "image_url", "dirty"]:
+            val = getattr(req, field, None)
+            if val is not None:
+                rec[field] = val
+        # return an object that matches CreateGarmentResponse
+        return CreateGarmentResponse(**rec)
+    
     def list_by_owner(self, owner: int):
         # return some fake garments for owner
         out = []
@@ -65,6 +91,23 @@ def test_create_garment_unit():
     # cleanup dependency overrides
     app.dependency_overrides.clear()
 
+def test_update_garment_unit():
+    fake = FakeService()
+    app.dependency_overrides[get_garment_service] = lambda: fake
+
+    payload = {
+        "name": "Updated Shirt",
+        "color": "#112233"
+    }
+
+    resp = client.patch("/garments/1", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == 1
+    assert body["name"] == "Updated Shirt"
+    assert body["color"].upper() == "#112233"
+
+    app.dependency_overrides.clear()
 
 def test_get_wardrobe_missing_user_id():
     # ensure endpoint requires user_id

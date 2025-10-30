@@ -37,6 +37,19 @@ class _GarmentStore(GarmentStore):
             self._session.rollback()
             raise GarmentStoreError("database error") from e
         return garment
+    
+    def get(self, id: int) -> Garment | None:
+        # simple session.get by primary key
+        return self._session.get(Garment, id)
+    
+    def update(self, garment: Garment) -> Garment:
+        try:
+            self._session.flush()
+        except SQLAlchemyError as e:
+            self._session.rollback()
+            raise GarmentStoreError("database error") from e
+        return garment
+
 
     def list_by_owner(self, owner: int) -> List[Garment]:
         try:
