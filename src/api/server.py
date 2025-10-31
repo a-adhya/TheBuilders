@@ -1,12 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse
 from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
+from typing import List, Optional
+from models.enums import Category
 
 from sqlalchemy.exc import OperationalError
 
@@ -66,7 +68,7 @@ def create_garment(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
-    
+
 @app.patch("/garments/{id}", response_model=CreateGarmentResponse)
 def update_garment(
     id: int, payload: UpdateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
@@ -82,3 +84,46 @@ def update_garment(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
+
+
+# Get Clothing Items
+
+# Endpoint: /api/item/get
+# Method: GET
+# Description: Retrieve clothing items (optionally filtered by user, tag, item type).
+# Example Request:
+# GET /api/item/get?user_id=5&type=top
+# Example Response:
+# {
+#   "items": [
+#     <clothing object>,
+#     ...
+#   ]
+# }
+# Response Codes:
+# 200 – Success
+# 404 – No items found
+# 401 – Unauthorized
+
+@app.get("/api/item/get", response_model=ListByOwnerResponse, status_code=200)
+def getWardrobe(user_id: int, category: Optional[Category] = None, svc: GarmentService = Depends(get_garment_service)):
+    """
+    Retrieve clothing items filtered by user id.
+
+    Query parameters:
+    - user_id (int): required. Returns all garments owned by the user.
+    """
+
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="user_id query parameter is required")
+
+    try:
+        response = svc.list_by_owner(user_id)
+        if not response.garments:
+            # return empty response with 200
+            return ListByOwnerResponse(garments=[], category = category)
+        return response
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+

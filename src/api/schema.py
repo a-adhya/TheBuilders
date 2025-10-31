@@ -1,6 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
+from typing import List
 
 from models.enums import Category, Material
 
@@ -15,9 +16,38 @@ class CreateGarmentRequest(BaseModel):
     dirty: bool
 
 
-class CreateGarmentResponse(CreateGarmentRequest):
+# Generic garment response model
+class GarmentResponse(BaseModel):
     id: int
+    owner: int
+    category: Category
+    color: str
+    name: str
+    material: Material
+    image_url: str
+    dirty: bool
     created_at: datetime
+
+# CreateGarmentResponse reuses GarmentResponse
+class CreateGarmentResponse(GarmentResponse):
+    pass
+
+
+# Generic garment response model
+class GarmentResponse(BaseModel):
+    id: int
+    owner: int
+    category: Category
+    color: str
+    name: str
+    material: Material
+    image_url: str
+    dirty: bool
+    created_at: datetime
+
+# Response model for list_by_owner
+class ListByOwnerResponse(BaseModel):
+    garments: List[GarmentResponse]
 
 
 class UpdateGarmentRequest(BaseModel):

@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, ListByOwnerResponse
 from api.server import app, get_garment_service
 from db.schema import Garment
 
@@ -13,7 +13,7 @@ class FakeService:
     """Fake GarmentService used for unit tests."""
     def __init__(self):
         self.created = []
-        # for update test: a simple in-memory dict
+         # for update test: a simple in-memory dict
         self.store = {
             1: {
                 "id": 1,
@@ -45,6 +45,24 @@ class FakeService:
                 rec[field] = val
         # return an object that matches CreateGarmentResponse
         return CreateGarmentResponse(**rec)
+    
+    def list_by_owner(self, owner: int):
+        out = []
+        if owner == 1:
+            out.append(
+                CreateGarmentResponse(
+                    id=1,
+                    owner=1,
+                    category=1,
+                    material=1,
+                    color="#000000",
+                    name="Unit Shirt",
+                    image_url="/img/x.png",
+                    dirty=False,
+                    created_at=datetime.now(timezone.utc),
+                ).dict()
+            )
+        return ListByOwnerResponse(garments=out)
 
 def test_create_garment_unit():
     fake = FakeService()
@@ -88,4 +106,19 @@ def test_update_garment_unit():
     assert body["name"] == "Updated Shirt"
     assert body["color"].upper() == "#112233"
 
+    app.dependency_overrides.clear()
+
+
+def test_get_wardrobe_by_user():
+    fake = FakeService()
+    app.dependency_overrides[get_garment_service] = lambda: fake
+
+    resp = client.get("/api/item/get?user_id=1")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "garments" in body
+    assert isinstance(body["garments"], list)
+    assert len(body["garments"]) == 1
+    assert body["garments"][0]["owner"] == 1
+    assert body["garments"][0]["name"] == "Unit Shirt"
     app.dependency_overrides.clear()

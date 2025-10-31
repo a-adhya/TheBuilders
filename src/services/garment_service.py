@@ -1,13 +1,13 @@
-from typing import Protocol
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest
+from typing import Protocol, List
+from api.schema import CreateGarmentRequest, UpdateGarmentRequest, GarmentResponse, ListByOwnerResponse
 from db.garment_store import MakeGarmentStore
 from db.driver import session_scope
 from db.schema import Garment
 
 
 class GarmentService(Protocol):
-    def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse: ...
-    def update(self, id: int, req: UpdateGarmentRequest) -> CreateGarmentResponse: ...
+    def create(self, req: CreateGarmentRequest) -> GarmentResponse: ...
+    def list_by_owner(self, owner: int) -> ListByOwnerResponse: ...
 
 
 class DbGarmentService:
@@ -19,7 +19,7 @@ class DbGarmentService:
     def __init__(self, session_factory) -> None:
         self._session_factory = session_factory
 
-    def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse:
+    def create(self, req: CreateGarmentRequest) -> GarmentResponse:
         with session_scope(self._session_factory) as s:
             store = MakeGarmentStore(s)
             garment = Garment(
@@ -32,7 +32,7 @@ class DbGarmentService:
             )
             persisted = store.create(garment)
 
-            return CreateGarmentResponse(
+            return GarmentResponse(
                 id=persisted.id,
                 owner=persisted.owner,
                 category=persisted.category,
@@ -43,8 +43,7 @@ class DbGarmentService:
                 dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )
-    
-    def update(self, id: int, req: UpdateGarmentRequest) -> CreateGarmentResponse:
+    def update(self, id: int, req: UpdateGarmentRequest) -> GarmentResponse:
         with session_scope(self._session_factory) as s:
             store = MakeGarmentStore(s)
             garment = store.get(id)
@@ -70,7 +69,7 @@ class DbGarmentService:
 
             persisted = store.update(garment)
 
-            return CreateGarmentResponse(
+            return GarmentResponse(
                 id=persisted.id,
                 owner=persisted.owner,
                 category=persisted.category,
@@ -81,3 +80,23 @@ class DbGarmentService:
                 dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )
+    def list_by_owner(self, owner: int) -> ListByOwnerResponse:
+        with session_scope(self._session_factory) as s:
+            store = MakeGarmentStore(s)
+            garments = store.list_by_owner(owner)
+
+            out = [
+                GarmentResponse(
+                    id=g.id,
+                    owner=g.owner,
+                    category=g.category,
+                    material=g.material,
+                    color=g.color,
+                    name=g.name,
+                    image_url=g.image_url,
+                    dirty=g.dirty,
+                    created_at=g.created_at,
+                )
+                for g in garments
+            ]
+            return ListByOwnerResponse(garments=out)
