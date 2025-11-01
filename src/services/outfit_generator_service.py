@@ -35,6 +35,17 @@ class OutfitGeneratorService:
         ]
 
         query = f"""
+        A garment has the following categories:
+        SHIRT = 1
+        TSHIRT = 2
+        JACKET = 3
+        SWEATER = 4
+        JEANS = 5
+        PANTS = 6
+        SHORTS = 7
+        SHOES = 8
+        ACCESSORY = 9
+
         Given the following list of garments:
 
         <garments>
