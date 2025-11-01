@@ -1,4 +1,4 @@
-# TO RUN: PYTHONPATH=src poetry run python -m pytest tests/api/unit.py -q 
+# TO RUN: PYTHONPATH=src poetry run python -m pytest tests/api/unit.py -q
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
@@ -9,11 +9,52 @@ from db.schema import Garment
 # API Server for Tests
 client = TestClient(app)
 
+
+def test_generate_outfit_unit():
+    class FakeGarmentService:
+        def list_by_owner(self, owner):
+            # Return a single fake garment for user_id=1
+            if owner == 1:
+                return ListByOwnerResponse(garments=[
+                    CreateGarmentResponse(
+                        id=1,
+                        owner=1,
+                        category=1,
+                        material=1,
+                        color="#000000",
+                        name="Unit Shirt",
+                        image_url="/img/x.png",
+                        dirty=False,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                ])
+            return ListByOwnerResponse(garments=[])
+
+    class FakeOutfitGeneratorService:
+        def generate_outfit(self, garments, context):
+            # Just return the garments as the outfit for testing
+            return {"garments": [g.dict() for g in garments.garments]}
+
+    app.dependency_overrides[get_garment_service] = lambda: FakeGarmentService(
+    )
+    app.dependency_overrides["services.outfit_generator_service.OutfitGeneratorService"] = lambda: FakeOutfitGeneratorService()
+
+    payload = {"optional_string": "test context"}
+    resp = client.post("/generate_outfit?user_id=1", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "garments" in body
+    assert len(body["garments"]) == 1
+    assert body["garments"][0]["name"] == "Unit Shirt"
+    app.dependency_overrides.clear()
+
+
 class FakeService:
     """Fake GarmentService used for unit tests."""
+
     def __init__(self):
         self.created = []
-         # for update test: a simple in-memory dict
+        # for update test: a simple in-memory dict
         self.store = {
             1: {
                 "id": 1,
@@ -45,7 +86,7 @@ class FakeService:
                 rec[field] = val
         # return an object that matches CreateGarmentResponse
         return CreateGarmentResponse(**rec)
-    
+
     def list_by_owner(self, owner: int):
         out = []
         if owner == 1:
@@ -63,6 +104,7 @@ class FakeService:
                 ).dict()
             )
         return ListByOwnerResponse(garments=out)
+
 
 def test_create_garment_unit():
     fake = FakeService()
@@ -89,6 +131,7 @@ def test_create_garment_unit():
     assert body["owner"] == 1
     # cleanup dependency overrides
     app.dependency_overrides.clear()
+
 
 def test_update_garment_unit():
     fake = FakeService()
