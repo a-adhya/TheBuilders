@@ -3,7 +3,7 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 import os
 from db.schema import Garment
-from api.schema import GenerateOutfitResponse
+from api.schema import GenerateOutfitResponse, ListByOwnerResponse
 
 
 class OutfitGeneratorService:
@@ -12,7 +12,7 @@ class OutfitGeneratorService:
         api_key = os.getenv("API_KEY")
         self.client = Anthropic(api_key=api_key)
 
-    def generate_outfit(self, garments: List[Garment], context: str) -> GenerateOutfitResponse:
+    def generate_outfit(self, closet: ListByOwnerResponse, context: str) -> GenerateOutfitResponse:
         tools = [
             {
                 "name": "print_outfit_garments",
@@ -35,21 +35,10 @@ class OutfitGeneratorService:
         ]
 
         query = f"""
-        A garment has the following categories:
-        SHIRT = 1
-        TSHIRT = 2
-        JACKET = 3
-        SWEATER = 4
-        JEANS = 5
-        PANTS = 6
-        SHORTS = 7
-        SHOES = 8
-        ACCESSORY = 9
-
         Given the following list of garments:
 
         <garments>
-        {garments}
+        {closet}
         </garments>
 
         and the following context:
@@ -82,7 +71,7 @@ class OutfitGeneratorService:
             gid_set = set(garment_ids)
             return GenerateOutfitResponse(
                 garments=[
-                    garment for garment in garments if garment.id in gid_set]
+                    garment for garment in closet.garments if garment.id in gid_set]
             )
         else:
             raise Exception("Error: Something went wrong with Claude API")

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest, GenerateOutfitRequest, GenerateOutfitResponse
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse, GenerateOutfitRequest, GenerateOutfitResponse
 from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
@@ -146,8 +146,10 @@ def generate_outfit(
             status_code=400, detail="user_id query parameter is required")
 
     try:
-        # garments = svc.list_by_owner(user_id)
-        garments = []  # TODO: replace placeholder with actual service call
+        garments = svc.list_by_owner(user_id)
+        if not garments.garments:
+            garments = ListByOwnerResponse(garments=[])
+
         context = payload.optional_string if payload.optional_string else "No additional context provided."
 
         return outfit_generator.generate_outfit(garments, context)
