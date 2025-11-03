@@ -4,6 +4,7 @@ from testcontainers.mysql import MySqlContainer
 
 from db.driver import create_tables, make_engine, make_session_factory, session_scope
 from db.garment_store import MakeGarmentStore
+from db.user_store import MakeUserStore
 from tests.db.util import generate_random_garment
 
 
@@ -74,26 +75,41 @@ def test_update_garment(session_factory):
         assert refreshed.name == "Integration Updated"
         assert refreshed.color == "#778899"
 
-    def test_list_by_owner_returns_garments(session_factory):
-        """Verify GarmentStore.list_by_owner returns garments for a given owner."""
-        from db.schema import Garment
-        from models.enums import Category, Material
+def test_list_by_owner_returns_garments(session_factory):
+    """Verify GarmentStore.list_by_owner returns garments for a given owner."""
+    from db.schema import Garment
+    from models.enums import Category, Material
 
-        test_owner = 4242
+    test_owner = 4242
 
-        with session_scope(session_factory) as s:
-            store = MakeGarmentStore(s)
-            g = Garment(
-                owner=test_owner,
-                category=Category.SHIRT,
-                material=Material.COTTON,
-                color="#ABCDEF",
-                name="Integration Shirt",
-                image_url="/img/int.png",
-                dirty=False,
-            )
-            store.create(g)
+    with session_scope(session_factory) as s:
+        store = MakeGarmentStore(s)
+        g = Garment(
+            owner=test_owner,
+            category=Category.SHIRT,
+            material=Material.COTTON,
+            color="#ABCDEF",
+            name="Integration Shirt",
+            image_url="/img/int.png",
+            dirty=False,
+        )
+        store.create(g)
 
-            garments = store.list_by_owner(test_owner)
-            assert isinstance(garments, list)
-            assert any(item.name == "Integration Shirt" for item in garments)
+        garments = store.list_by_owner(test_owner)
+        assert isinstance(garments, list)
+        assert any(item.name == "Integration Shirt" for item in garments)
+            
+def test_create_user(session_factory):
+    """Verify that we can create a user in the DB."""
+    from db.schema import User
+
+    with session_scope(session_factory) as s:
+        store = MakeUserStore(s)
+        u = User(
+            username="testuser",
+            hashed_password="hashedpw",
+        )
+        out = store.create(u)
+        
+        assert out.id is not None
+        assert out.username == "testuser"
