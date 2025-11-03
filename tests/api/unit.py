@@ -10,48 +10,15 @@ from db.schema import Garment
 client = TestClient(app)
 
 
-def test_generate_outfit_unit():
-    class FakeGarmentService:
-        def list_by_owner(self, owner):
-            # Return a single fake garment for user_id=1
-            if owner == 1:
-                return ListByOwnerResponse(garments=[
-                    CreateGarmentResponse(
-                        id=1,
-                        owner=1,
-                        category=1,
-                        material=1,
-                        color="#000000",
-                        name="Unit Shirt",
-                        image_url="/img/x.png",
-                        dirty=False,
-                        created_at=datetime.now(timezone.utc),
-                    )
-                ])
-            return ListByOwnerResponse(garments=[])
-
-    class FakeOutfitGeneratorService:
-        def generate_outfit(self, garments, context):
-            # Just return the garments as the outfit for testing
-            return {"garments": [g.dict() for g in garments.garments]}
-
-    app.dependency_overrides[get_garment_service] = lambda: FakeGarmentService(
-    )
-    app.dependency_overrides["services.outfit_generator_service.OutfitGeneratorService"] = lambda: FakeOutfitGeneratorService()
-
-    payload = {"optional_string": "test context"}
-    resp = client.post("/generate_outfit?user_id=1", json=payload)
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "garments" in body
-    assert len(body["garments"]) == 1
-    assert body["garments"][0]["name"] == "Unit Shirt"
-    app.dependency_overrides.clear()
+# FakeOutfitGeneratorService defined at module level for reuse
+class FakeOutfitGeneratorService:
+    def generate_outfit(self, garments, context):
+        # Just return the garments as the outfit for testing
+        return {"garments": [g.dict() for g in garments.garments]}
 
 
-class FakeService:
-    """Fake GarmentService used for unit tests."""
-
+# FakeGarmentService used for unit tests
+class FakeGarmentService:
     def __init__(self):
         self.created = []
         # for update test: a simple in-memory dict
@@ -106,8 +73,24 @@ class FakeService:
         return ListByOwnerResponse(garments=out)
 
 
+def test_generate_outfit_unit():
+    # Use the shared FakeGarmentService and FakeOutfitGeneratorService
+    app.dependency_overrides[get_garment_service] = lambda: FakeGarmentService(
+    )
+    app.dependency_overrides["services.outfit_generator_service.OutfitGeneratorService"] = lambda: FakeOutfitGeneratorService()
+
+    payload = {"optional_string": "test context"}
+    resp = client.post("/generate_outfit?user_id=1", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "garments" in body
+    assert len(body["garments"]) == 1
+    assert body["garments"][0]["name"] == "Unit Shirt"
+    app.dependency_overrides.clear()
+
+
 def test_create_garment_unit():
-    fake = FakeService()
+    fake = FakeGarmentService()
     # override the dependency used by the app
     app.dependency_overrides[get_garment_service] = lambda: fake
 
@@ -134,7 +117,7 @@ def test_create_garment_unit():
 
 
 def test_update_garment_unit():
-    fake = FakeService()
+    fake = FakeGarmentService()
     app.dependency_overrides[get_garment_service] = lambda: fake
 
     payload = {
@@ -153,7 +136,7 @@ def test_update_garment_unit():
 
 
 def test_get_wardrobe_by_user():
-    fake = FakeService()
+    fake = FakeGarmentService()
     app.dependency_overrides[get_garment_service] = lambda: fake
 
     resp = client.get("/api/item/get?user_id=1")
