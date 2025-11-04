@@ -206,7 +206,7 @@ struct ClothingItemDetailView: View {
             
             // Update button
             Button(action: {
-                updateItem()
+                Task { await updateItem() }
             }) {
                 VStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
@@ -222,7 +222,7 @@ struct ClothingItemDetailView: View {
             
             // Delete button
             Button(action: {
-                deleteItem()
+                Task { await deleteItem() }
             }) {
                 VStack(spacing: 8) {
                     Image(systemName: "trash")
@@ -247,18 +247,18 @@ struct ClothingItemDetailView: View {
     
     // MARK: - Private Methods
     
-    private func updateItem() {
+    private func updateItem() async {
         var updatedItem = item
         // Model uses String for category; assign directly
         updatedItem.category = selectedCategory
         updatedItem.description = itemDescription
 
-        wardrobeManager.updateItem(updatedItem)
+        await wardrobeManager.updateItem(updatedItem)
         dismiss()
     }
     
-    private func deleteItem() {
-        wardrobeManager.deleteItem(withId: item.id)
+    private func deleteItem() async {
+        await wardrobeManager.deleteItem(withId: item.id)
         dismiss()
     }
 }
