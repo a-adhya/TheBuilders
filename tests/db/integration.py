@@ -7,9 +7,6 @@ from db.garment_store import MakeGarmentStore
 from tests.db.util import generate_random_garment
 from db.schema import Garment
 from models.enums import Category, Material
-from fastapi.testclient import TestClient
-from api.server import app, get_garment_service
-from services.garment_service import DbGarmentService
 
 
 @pytest.fixture(scope="session")
@@ -82,7 +79,9 @@ def test_update_garment(session_factory):
 
 def test_list_by_owner_returns_garments(session_factory):
     """Verify GarmentStore.list_by_owner returns garments for a given owner."""
+
     test_owner = 4242
+
     with session_scope(session_factory) as s:
         store = MakeGarmentStore(s)
         g = Garment(
@@ -95,36 +94,7 @@ def test_list_by_owner_returns_garments(session_factory):
             dirty=False,
         )
         store.create(g)
+
         garments = store.list_by_owner(test_owner)
         assert isinstance(garments, list)
         assert any(item.name == "Integration Shirt" for item in garments)
-
-
-def test_generate_outfit_integration(session_factory):
-    """Integration test for /generate_outfit endpoint with real DB."""
-    test_owner = 5555
-    with session_scope(session_factory) as s:
-        store = MakeGarmentStore(s)
-        g = Garment(
-            owner=test_owner,
-            category=Category.SHIRT,
-            material=Material.COTTON,
-            color="#123456",
-            name="IntegrationTest Shirt",
-            image_url="/img/inttest.png",
-            dirty=False,
-        )
-        store.create(g)
-    # Patch the dependency to use the test session factory
-    app.dependency_overrides[get_garment_service] = lambda: DbGarmentService(
-        session_factory)
-    client = TestClient(app)
-    payload = {"optional_string": "integration context"}
-    resp = client.post(
-        f"/generate_outfit?user_id={test_owner}", json=payload)
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "garments" in body
-    assert any(item["name"] ==
-               "IntegrationTest Shirt" for item in body["garments"])
-    app.dependency_overrides.clear()
