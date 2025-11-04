@@ -60,7 +60,14 @@ class _GarmentStore(GarmentStore):
         except SQLAlchemyError as e:
             raise GarmentStoreError("database error") from e
         return results
-
+    
+    def delete(self, garment: Garment) -> None:
+        try:
+            self._session.delete(garment)
+            self._session.flush()
+        except SQLAlchemyError as e:
+            self._session.rollback()
+            raise GarmentStoreError("database error") from e
 
 # --- Public Factory  ---
 def MakeGarmentStore(session: Session) -> GarmentStore:

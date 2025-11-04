@@ -64,3 +64,27 @@ def test_db_garment_service_update(sqlite_session_factory):
     # unchanged fields remain
     assert updated.owner == out.owner
     assert updated.image_url == out.image_url
+    
+def test_db_garment_service_delete(sqlite_session_factory):
+    """Verify that DbGarmentService.delete removes the garment from the DB."""
+    svc = DbGarmentService(sqlite_session_factory)
+
+    # create initial garment
+    req = CreateGarmentRequest(
+        owner=2,
+        category=2,
+        color="#ABCDEF",
+        name="To Delete",
+        material=2,
+        image_url="/img/delete.png",
+        dirty=True,
+    )
+
+    out = svc.create(req)
+    gid = out.id
+
+    # delete the garment
+    deleted = svc.delete(gid)
+
+    assert deleted.id == gid
+    assert deleted.name == "To Delete"

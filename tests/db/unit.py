@@ -7,8 +7,6 @@ from models.enums import Category, Material
 from db.garment_store import MakeGarmentStore, GarmentStoreError
 from sqlalchemy.exc import SQLAlchemyError
 
-
-
 @pytest.fixture
 def sample_garment():
     return Garment(
@@ -40,12 +38,25 @@ def test_create_garment_success(sample_garment):
 
 # verify we catch DB failures
 def test_create_garment_db_failure(sample_garment):
-    
     session = MagicMock()
     session.flush.side_effect = SQLAlchemyError("boom")
     store = MakeGarmentStore(session)
     with pytest.raises(GarmentStoreError):
         store.create(sample_garment)
+        
+def test_delete_garment_success(sample_garment):
+    session = MagicMock()
+    store = MakeGarmentStore(session)
+    store.delete(sample_garment)
+    session.delete.assert_called_once_with(sample_garment)
+    session.flush.assert_called_once()
+
+def test_delete_garment_db_failure(sample_garment):
+    session = MagicMock()
+    session.flush.side_effect = SQLAlchemyError("boom")
+    store = MakeGarmentStore(session)
+    with pytest.raises(GarmentStoreError):
+        store.delete(sample_garment)
         
 def test_create_user_success(sample_user):
     session = MagicMock()
@@ -55,7 +66,7 @@ def test_create_user_success(sample_user):
     session.add.assert_called_once_with(sample_user)
     session.flush.assert_called_once()
     assert out is sample_user
-
+    
 def test_create_user_db_failure(sample_user):
     session = MagicMock()
     session.flush.side_effect = SQLAlchemyError("boom")

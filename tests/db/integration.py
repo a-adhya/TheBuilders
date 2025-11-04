@@ -114,3 +114,17 @@ def test_create_user(session_factory):
         
         assert out.id is not None
         assert out.username == "testuser"
+        
+def test_delete_garment(session_factory):
+    """Verify that we can delete a garment from the DB."""
+    with session_scope(session_factory) as s:
+        store = MakeGarmentStore(s)
+        g = generate_random_garment(owner=555)
+        persisted = store.create(g)
+        
+        # now delete
+        store.delete(persisted)
+        
+        # verify it's gone
+        fetched = store.get(persisted.id)
+        assert fetched is None  

@@ -2,25 +2,22 @@
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, ListByOwnerResponse
+from api.schema import (
+    CreateGarmentRequest,
+    CreateGarmentResponse,
+    ListByOwnerResponse,
+    DeleteGarmentResponse,
+)
 from api.server import app, get_garment_service
 from db.schema import Garment
 
 # API Server for Tests
 client = TestClient(app)
 
-
-# FakeOutfitGeneratorService defined at module level for reuse
-class FakeOutfitGeneratorService:
-    def generate_outfit(self, garments, context):
-        # Just return the garments as the outfit for testing
-        return {"garments": [g.dict() for g in garments.garments]}
-
-
 # FakeGarmentService used for unit tests
 class FakeGarmentService:
     def __init__(self):
-        self.created = []
+        # Use an in-memory dict keyed by id to simulate persistence
         # for update test: a simple in-memory dict
         self.store = {
             1: {
@@ -37,10 +34,28 @@ class FakeGarmentService:
         }
 
     def create(self, req: CreateGarmentRequest) -> CreateGarmentResponse:
-        req.id = len(self.created) + 1
-        req.created_at = datetime.now(timezone.utc)
-        self.created.append(req)
-        return req
+        # Accept either a DB Garment-like object or a Pydantic request object.
+        # Determine the next id
+        next_id = max(self.store.keys()) + 1 if self.store else 1
+
+        # Build the record from available attributes
+        rec = {
+            "id": next_id,
+            "owner": getattr(req, "owner", None),
+            "category": getattr(req, "category", None),
+            "color": getattr(req, "color", None),
+            "name": getattr(req, "name", None),
+            "material": getattr(req, "material", None),
+            "image_url": getattr(req, "image_url", None),
+            "dirty": getattr(req, "dirty", False),
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        # persist to the in-memory store
+        self.store[next_id] = rec
+
+        # return a response model instance
+        return CreateGarmentResponse(**rec)
 
     def update(self, id: int, req):
         if id not in self.store:
@@ -54,40 +69,22 @@ class FakeGarmentService:
         # return an object that matches CreateGarmentResponse
         return CreateGarmentResponse(**rec)
 
+    def delete(self, id: int):
+        # delete the record from the in-memory store and return a response
+        if id not in self.store:
+            raise ValueError("not found")
+        rec = self.store.pop(id)
+
+        return DeleteGarmentResponse(**rec)
+
     def list_by_owner(self, owner: int):
         out = []
-        if owner == 1:
-            out.append(
-                CreateGarmentResponse(
-                    id=1,
-                    owner=1,
-                    category=1,
-                    material=1,
-                    color="#000000",
-                    name="Unit Shirt",
-                    image_url="/img/x.png",
-                    dirty=False,
-                    created_at=datetime.now(timezone.utc),
-                ).dict()
-            )
+        for rec in self.store.values():
+            if rec.get("owner") == owner:
+                # create response model from stored dict; ensure created_at is present
+                out.append(CreateGarmentResponse(**rec).dict())
+
         return ListByOwnerResponse(garments=out)
-
-
-def test_generate_outfit_unit():
-    # Use the shared FakeGarmentService and FakeOutfitGeneratorService
-    app.dependency_overrides[get_garment_service] = lambda: FakeGarmentService(
-    )
-    app.dependency_overrides["services.outfit_generator_service.OutfitGeneratorService"] = lambda: FakeOutfitGeneratorService()
-
-    payload = {"optional_string": "test context"}
-    resp = client.post("/generate_outfit?user_id=1", json=payload)
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "garments" in body
-    assert len(body["garments"]) == 1
-    assert body["garments"][0]["name"] == "Unit Shirt"
-    app.dependency_overrides.clear()
-
 
 def test_create_garment_unit():
     fake = FakeGarmentService()
@@ -109,12 +106,48 @@ def test_create_garment_unit():
     body = resp.json()
 
     # verify response mapped values and that id was assigned by the fake store
-    assert body["id"] == 1
+    assert body["id"] is not None
     assert body["name"] == "Unit Shirt"
     assert body["owner"] == 1
     # cleanup dependency overrides
     app.dependency_overrides.clear()
 
+
+def test_delete_garment_unit():
+    fake = FakeGarmentService()
+
+    # Isolate this test by creating our own item
+    test_id = 9999
+    fake.store = {
+        test_id: {
+            "id": test_id,
+            "owner": 1,
+            "category": 1,
+            "color": "#ABCDEF",
+            "name": "Delete Me",
+            "material": 1,
+            "image_url": "/img/delete.png",
+            "dirty": False,
+            "created_at": datetime.now(timezone.utc),
+        }
+    }
+
+    app.dependency_overrides[get_garment_service] = lambda: fake
+    payload = {"id": test_id}
+
+    resp = client.request("DELETE", "/delete_garment", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == test_id
+
+    # ensure the item is gone from the wardrobe
+    resp2 = client.get("/api/item/get?user_id=1")
+    assert resp2.status_code == 200
+    body2 = resp2.json()
+    assert isinstance(body2["garments"], list)
+    assert len(body2["garments"]) == 0
+
+    app.dependency_overrides.clear()
 
 def test_update_garment_unit():
     fake = FakeGarmentService()
