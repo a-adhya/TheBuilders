@@ -6,6 +6,8 @@ from db.driver import create_tables, make_engine, make_session_factory, session_
 from db.garment_store import MakeGarmentStore
 from db.user_store import MakeUserStore
 from tests.db.util import generate_random_garment
+from db.schema import Garment
+from models.enums import Category, Material
 
 
 @pytest.fixture(scope="session")
@@ -75,10 +77,9 @@ def test_update_garment(session_factory):
         assert refreshed.name == "Integration Updated"
         assert refreshed.color == "#778899"
 
+
 def test_list_by_owner_returns_garments(session_factory):
     """Verify GarmentStore.list_by_owner returns garments for a given owner."""
-    from db.schema import Garment
-    from models.enums import Category, Material
 
     test_owner = 4242
 

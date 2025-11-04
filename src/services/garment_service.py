@@ -7,6 +7,7 @@ from db.schema import Garment
 
 class GarmentService(Protocol):
     def create(self, req: CreateGarmentRequest) -> GarmentResponse: ...
+    def update(self, id: int, req: UpdateGarmentRequest) -> GarmentResponse: ...
     def list_by_owner(self, owner: int) -> ListByOwnerResponse: ...
 
 
@@ -43,6 +44,7 @@ class DbGarmentService:
                 dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )
+
     def update(self, id: int, req: UpdateGarmentRequest) -> GarmentResponse:
         with session_scope(self._session_factory) as s:
             store = MakeGarmentStore(s)
@@ -80,6 +82,7 @@ class DbGarmentService:
                 dirty=persisted.dirty,
                 created_at=persisted.created_at,
             )
+
     def list_by_owner(self, owner: int) -> ListByOwnerResponse:
         with session_scope(self._session_factory) as s:
             store = MakeGarmentStore(s)
