@@ -1,6 +1,6 @@
 # db/schema.py
 from datetime import datetime
-from sqlalchemy import Boolean, Enum, String, Integer, DateTime, func, Index, text
+from sqlalchemy import Boolean, Enum, String, Integer, DateTime, UniqueConstraint, func, Index, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from models.enums import Category, Material
 
@@ -27,3 +27,14 @@ class Garment(Base):
     )
 
     __table_args__ = (Index("ix_garments_owner", "owner"),)
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("username", name="uq_users_username"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(150), nullable=False, index=True, unique=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

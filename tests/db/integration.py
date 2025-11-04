@@ -4,6 +4,7 @@ from testcontainers.mysql import MySqlContainer
 
 from db.driver import create_tables, make_engine, make_session_factory, session_scope
 from db.garment_store import MakeGarmentStore
+from db.user_store import MakeUserStore
 from tests.db.util import generate_random_garment
 from db.schema import Garment
 from models.enums import Category, Material
@@ -98,3 +99,18 @@ def test_list_by_owner_returns_garments(session_factory):
         garments = store.list_by_owner(test_owner)
         assert isinstance(garments, list)
         assert any(item.name == "Integration Shirt" for item in garments)
+            
+def test_create_user(session_factory):
+    """Verify that we can create a user in the DB."""
+    from db.schema import User
+
+    with session_scope(session_factory) as s:
+        store = MakeUserStore(s)
+        u = User(
+            username="testuser",
+            hashed_password="hashedpw",
+        )
+        out = store.create(u)
+        
+        assert out.id is not None
+        assert out.username == "testuser"
