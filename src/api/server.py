@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse, GenerateOutfitRequest, GenerateOutfitResponse
+from api.schema import CreateGarmentRequest, CreateGarmentResponse, DeleteGarmentRequest, DeleteGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse, GenerateOutfitRequest, GenerateOutfitResponse
 from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
@@ -153,6 +153,21 @@ def generate_outfit(
         context = payload.optional_string if payload.optional_string else "No additional context provided."
 
         return outfit_generator.generate_outfit(garments, context)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+    
+@app.delete("/delete_garment", response_model=DeleteGarmentResponse)
+def delete_garment(
+    payload: DeleteGarmentRequest,
+    svc: GarmentService = Depends(get_garment_service)
+):
+    try:
+        out = svc.delete(payload.id)
+        return out
+    except ValueError:
+        # not found
+        raise HTTPException(status_code=404, detail="garment not found")
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

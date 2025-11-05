@@ -9,6 +9,7 @@ class GarmentService(Protocol):
     def create(self, req: CreateGarmentRequest) -> GarmentResponse: ...
     def update(self, id: int, req: UpdateGarmentRequest) -> GarmentResponse: ...
     def list_by_owner(self, owner: int) -> ListByOwnerResponse: ...
+    def delete(self, id: int) -> GarmentResponse: ...
 
 
 class DbGarmentService:
@@ -103,3 +104,23 @@ class DbGarmentService:
                 for g in garments
             ]
             return ListByOwnerResponse(garments=out)
+        
+    def delete(self, id: int) -> GarmentResponse:
+        with session_scope(self._session_factory) as s:
+            store = MakeGarmentStore(s)
+            garment = store.get(id)
+            if garment is None:
+                # service-level not-found signal
+                raise ValueError("garment not found")
+            store.delete(garment)
+            return GarmentResponse(
+                id=garment.id,
+                owner=garment.owner,
+                category=garment.category,
+                material=garment.material,
+                color=garment.color,
+                name=garment.name,
+                image_url=garment.image_url,
+                dirty=garment.dirty,
+                created_at=garment.created_at,
+            )
