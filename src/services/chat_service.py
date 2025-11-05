@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from anthropic import Anthropic
 from dotenv import load_dotenv
 import os
