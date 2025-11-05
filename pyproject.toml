@@ -16,7 +16,8 @@ dependencies = [
     "httpx (>=0.28.1,<0.29.0)",
     "fastapi (>=0.120.1,<0.121.0)",
     "pydantic (>=2.12.3,<3.0.0)",
-    "cryptography (>=46.0.3,<47.0.0)"
+    "cryptography (>=46.0.3,<47.0.0)",
+    "anthropic (>=0.72.0,<0.73.0)"
 ]
 packages = [{ include = "*", from = "src" }]
 
