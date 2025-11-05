@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional, List, Union
+from typing import Optional, List
 
 from models.enums import Category, Material
 
