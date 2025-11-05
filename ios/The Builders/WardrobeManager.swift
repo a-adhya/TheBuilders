@@ -2,7 +2,7 @@
 //  WardrobeManager.swift
 //  TheBuilders
 //
-//  Created by Cassie Liu on 10/28/25.
+//  Created by Cassie Liu on 10/28/2025.
 //
 
 import SwiftUI
@@ -113,5 +113,12 @@ class WardrobeManager: ObservableObject {
         } catch {
             // ignore for mock
         }
+    }
+    
+    // Create a new garment
+    func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO {
+        let created = try await api.createGarment(garment)
+        await load()
+        return created
     }
 }

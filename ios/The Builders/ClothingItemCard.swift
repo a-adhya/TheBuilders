@@ -71,10 +71,34 @@ struct ClothingItemCard: View {
                 .font(.system(size: 40))
                 .foregroundColor(item.color)
         } else {
-            // Generic accessory icon
-            Image(systemName: "circle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(item.color)
+            // For text-only items, show name in a rectangular box
+            // Check if this looks like a text-only item (no common keywords)
+            let hasImagePattern = item.name.contains("T-Shirt") || 
+                                   item.name.contains("Jeans") || 
+                                   item.name.contains("Pants") || 
+                                   item.name.contains("Dress") || 
+                                   item.name.contains("Sneakers") || 
+                                   item.name.contains("Boots")
+            
+            if !hasImagePattern {
+                // Text-only item: show name in rectangular box
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(item.color.opacity(0.3))
+                    .overlay(
+                        Text(item.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(item.color)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .padding(8)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Generic accessory icon
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(item.color)
+            }
         }
     }
     
