@@ -27,29 +27,73 @@ extension String {
     func cleanedMarkdown() -> String {
         var cleaned = self
         
-        // Remove markdown headers (##, ###, etc.) - handle multi-line
-        cleaned = cleaned.replacingOccurrences(of: #"^#+\s+"#, with: "", options: [.regularExpression, .anchorsMatchLines])
+        // Remove code blocks ``` first (multi-line)
+        while let startRange = cleaned.range(of: "```") {
+            if let endRange = cleaned[startRange.upperBound...].range(of: "```") {
+                cleaned.removeSubrange(startRange.lowerBound..<endRange.upperBound)
+            } else {
+                break
+            }
+        }
         
-        // Remove bold markdown (**text**)
-        cleaned = cleaned.replacingOccurrences(of: #"\*\*([^*]+)\*\*"#, with: "$1", options: .regularExpression)
+        // Split into lines to handle multi-line patterns
+        var lines = cleaned.components(separatedBy: .newlines)
         
-        // Remove italic markdown (*text* or _text_) - but be careful not to match asterisks in the middle
-        cleaned = cleaned.replacingOccurrences(of: #"(?<!\*)\*([^*]+)\*(?!\*)"#, with: "$1", options: .regularExpression)
-        cleaned = cleaned.replacingOccurrences(of: #"_([^_]+)_"#, with: "$1", options: .regularExpression)
+        // Process each line
+        for i in 0..<lines.count {
+            var line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Remove markdown headers (##, ###, etc.) at start of line
+            if trimmed.hasPrefix("#") {
+                line = line.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
+            }
+            
+            // Remove markdown list markers (-, *) at start of line and replace with bullet
+            if trimmed.hasPrefix("-") || trimmed.hasPrefix("*") {
+                line = line.replacingOccurrences(of: #"^\s*[-*]\s+"#, with: "• ", options: .regularExpression)
+            }
+            
+            // Remove numbered list markers (1., 2., etc.) at start of line
+            if trimmed.first?.isNumber == true {
+                line = line.replacingOccurrences(of: #"^\s*\d+\.\s+"#, with: "", options: .regularExpression)
+            }
+            
+            // Remove bold markdown (**text**) first
+            line = line.replacingOccurrences(of: #"\*\*([^*]+)\*\*"#, with: "$1", options: .regularExpression)
+            
+            // Remove italic markdown (*text*) - simple pattern matching
+            // Since bold is already removed, any remaining *text* is italic
+            while let startRange = line.range(of: "*") {
+                let afterStart = line.index(after: startRange.lowerBound)
+                if let endRange = line[afterStart...].range(of: "*") {
+                    // Found *text* pattern
+                    let text = line[startRange.upperBound..<endRange.lowerBound]
+                    line.replaceSubrange(startRange.lowerBound...endRange.lowerBound, with: String(text))
+                } else {
+                    break
+                }
+            }
+            
+            // Remove italic markdown (_text_)
+            line = line.replacingOccurrences(of: #"_([^_]+)_"#, with: "$1", options: .regularExpression)
+            
+            // Remove markdown links [text](url) -> text
+            line = line.replacingOccurrences(of: #"\[([^\]]+)\]\([^\)]+\)"#, with: "$1", options: .regularExpression)
+            
+            // Remove inline code `code`
+            line = line.replacingOccurrences(of: #"`([^`]+)`"#, with: "$1", options: .regularExpression)
+            
+            lines[i] = line
+        }
         
-        // Remove markdown links [text](url) -> text
-        cleaned = cleaned.replacingOccurrences(of: #"\[([^\]]+)\]\([^\)]+\)"#, with: "$1", options: .regularExpression)
-        
-        // Remove markdown list markers (-, *, 1.) and replace with bullet
-        cleaned = cleaned.replacingOccurrences(of: #"^\s*[-*]\s+"#, with: "• ", options: [.regularExpression, .anchorsMatchLines])
-        cleaned = cleaned.replacingOccurrences(of: #"^\s*\d+\.\s+"#, with: "", options: [.regularExpression, .anchorsMatchLines])
-        
-        // Remove code blocks ```
-        cleaned = cleaned.replacingOccurrences(of: #"```[^`]*```"#, with: "", options: [.regularExpression, .dotMatchesLineSeparators])
-        cleaned = cleaned.replacingOccurrences(of: #"`([^`]+)`"#, with: "$1", options: .regularExpression)
+        // Join lines back
+        cleaned = lines.joined(separator: "\n")
         
         // Clean up extra whitespace and newlines
-        cleaned = cleaned.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        while cleaned.contains("\n\n\n") {
+            cleaned = cleaned.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
         
         return cleaned
