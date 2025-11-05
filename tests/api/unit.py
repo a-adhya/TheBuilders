@@ -141,7 +141,7 @@ def test_delete_garment_unit():
     assert body["id"] == test_id
 
     # ensure the item is gone from the wardrobe
-    resp2 = client.get("/wardrobe/1")
+    resp2 = client.get("/garments/1")
     assert resp2.status_code == 200
     body2 = resp2.json()
     assert isinstance(body2["garments"], list)
@@ -172,7 +172,7 @@ def test_get_wardrobe_by_user():
     fake = FakeGarmentService()
     app.dependency_overrides[get_garment_service] = lambda: fake
 
-    resp = client.get("/wardrobe/1")
+    resp = client.get("/garments/1")
     assert resp.status_code == 200
     body = resp.json()
     assert "garments" in body

@@ -139,8 +139,8 @@ def update_garment(
         raise HTTPException(status_code=500, detail="internal error")
 
 
-@app.get("/wardrobe/{user_id}", response_model=ListByOwnerResponse, status_code=200)
-def getWardrobe(
+@app.get("/garments/{user_id}", response_model=ListByOwnerResponse, status_code=200)
+def get_garments_by_user(
     user_id: int,
     svc: GarmentService = Depends(get_garment_service),
 ):
