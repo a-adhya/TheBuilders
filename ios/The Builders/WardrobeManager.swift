@@ -8,8 +8,8 @@
 import SwiftUI
 import Combine
 
-//TODO: Fake DB, need to connect with backend
 // Observable data manager for clothing items
+// Connected to real backend API via RealGarmentAPI
 @MainActor
 class WardrobeManager: ObservableObject {
     @Published var items: [ClothingItem] = []
@@ -19,8 +19,8 @@ class WardrobeManager: ObservableObject {
     let categories: [String] = ClothingItem.Category.allCases.map { category in category.rawValue }
     
     init(api: GarmentAPI? = nil) {
-        let mock = MockGarmentAPI()
-        self.api = api ?? mock
+        let realAPI = RealGarmentAPI()
+        self.api = api ?? realAPI
         Task { await load() }
     }
 
