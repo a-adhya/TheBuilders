@@ -8,14 +8,14 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 0
+    @StateObject private var tabSelection = TabSelectionManager()
     
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $tabSelection.selectedTab) {
             // Home tab
             HomeView()
                 .tabItem {
-                    Image(systemName: selectedTab == 0 ? "house.fill" : "house")
+                    Image(systemName: tabSelection.selectedTab == 0 ? "house.fill" : "house")
                     Text("Home")
                 }
                 .tag(0)
@@ -23,7 +23,7 @@ struct ContentView: View {
             // Outfit Generator tab
             OutfitGeneratorView()
                 .tabItem {
-                    Image(systemName: selectedTab == 1 ? "tshirt.fill" : "tshirt")
+                    Image(systemName: tabSelection.selectedTab == 1 ? "tshirt.fill" : "tshirt")
                     Text("Outfit\nGenerator")
                 }
                 .tag(1)
@@ -31,7 +31,7 @@ struct ContentView: View {
             // Feedback tab
             FeedbackView()
                 .tabItem {
-                    Image(systemName: selectedTab == 2 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
+                    Image(systemName: tabSelection.selectedTab == 2 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
                     Text("Feedback")
                 }
                 .tag(2)
@@ -68,6 +68,7 @@ struct ContentView: View {
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
+        .environmentObject(tabSelection)
     }
 }
 

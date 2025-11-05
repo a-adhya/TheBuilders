@@ -105,7 +105,7 @@ struct OutfitGenerationComplete: View {
             shoes: ClothingItem(id: 3, name: "Brown Boots", color: .brown, isInLaundry: false, category: "Shoes", description: "Brown lace-up boots"),
             accessories: nil
         ),
-        selectedOption: .wardrobe
+        selectedOption: OutfitConfirm1.LaundryOption.wardrobe
     )
 }
 
