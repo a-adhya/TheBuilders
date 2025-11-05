@@ -20,10 +20,8 @@ from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
-from models.enums import Category
 from services.outfit_generator_service import OutfitGeneratorService
 from services.chat_service import ChatService
-from typing import Optional
 
 from sqlalchemy.exc import OperationalError
 

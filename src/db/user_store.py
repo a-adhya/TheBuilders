@@ -1,6 +1,6 @@
 # db/user_store.py
 from __future__ import annotations
-from typing import Optional, Protocol, List
+from typing import Optional, Protocol
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
