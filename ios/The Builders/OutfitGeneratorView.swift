@@ -12,11 +12,6 @@ struct OutfitGeneratorView: View {
     @State private var preferredItems = ""
     @State private var mood = ""
     @FocusState private var focusedField: Field?
-    @State private var isLoading = false
-    @State private var navigateToGenerated = false
-    @State private var generatedOutfit: Outfit?
-    
-    private let outfitAPI: OutfitAPI = MockOutfitAPI()
     
     enum Field: Hashable {
         case occasion, preferredItems, mood
@@ -149,34 +144,24 @@ struct OutfitGeneratorView: View {
                     Button(action: {
                         // Dismiss keyboard before generating outfit
                         focusedField = nil
-                        Task {
-                            await generateOutfit()
-                        }
+                        // TODO: Implement outfit generation logic
+                        print("Generate outfit tapped")
                     }) {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(Color.purple)
-                                .cornerRadius(28)
-                        } else {
-                            Text("Generate Outfit")
-                                .font(.title3)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(Color.purple)
-                                .cornerRadius(28)
-                        }
+                        Text("Generate Outfit")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(Color.purple)
+                            .cornerRadius(28)
                     }
-                    .disabled(isLoading)
-                    .padding(.bottom, 20)
+                   
+                    
+                    // Bottom spacing for tab bar
+                    Color.clear.frame(height: 120)
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, 20)
-                .padding(.bottom, 100) // Extra padding for tab bar
                 
             }
             .background(Color(.systemGray6))
@@ -185,36 +170,6 @@ struct OutfitGeneratorView: View {
                 // Dismiss keyboard when tapping the background
                 focusedField = nil
             }
-            .navigationDestination(isPresented: $navigateToGenerated) {
-                if let outfit = generatedOutfit {
-                    OutfitGeneratedView(outfit: outfit)
-                }
-            }
-        }
-    }
-    
-    private func generateOutfit() async {
-        await MainActor.run {
-            isLoading = true
-        }
-        
-        do {
-            let outfit = try await outfitAPI.generateOutfit(
-                occasion: occasion.isEmpty ? nil : occasion,
-                preferredItems: preferredItems.isEmpty ? nil : preferredItems,
-                mood: mood.isEmpty ? nil : mood
-            )
-            
-            await MainActor.run {
-                self.generatedOutfit = outfit
-                self.isLoading = false
-                self.navigateToGenerated = true
-            }
-        } catch {
-            await MainActor.run {
-                self.isLoading = false
-            }
-            print("Error generating outfit: \(error)")
         }
     }
 }

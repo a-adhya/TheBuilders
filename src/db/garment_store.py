@@ -1,7 +1,7 @@
 # db/user_store.py
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, List
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,8 +11,7 @@ from .schema import Garment
 
 class GarmentStore(Protocol):
     def create(self, garment: Garment) -> Garment: ...
-    def get(self, id: int) -> Garment | None: ...
-    def update(self, garment: Garment) -> Garment: ...
+    def list_by_owner(self, owner: int) -> List[Garment]: ...
 
 
 # --- Error Types ---
@@ -38,7 +37,7 @@ class _GarmentStore(GarmentStore):
             self._session.rollback()
             raise GarmentStoreError("database error") from e
         return garment
-
+    
     def get(self, id: int) -> Garment | None:
         # simple session.get by primary key
         return self._session.get(Garment, id)
@@ -50,6 +49,17 @@ class _GarmentStore(GarmentStore):
             self._session.rollback()
             raise GarmentStoreError("database error") from e
         return garment
+
+
+    def list_by_owner(self, owner: int) -> List[Garment]:
+        try:
+            # Use a simple query to return all garments for the owner
+            results = (
+                self._session.query(Garment).filter_by(owner=owner).all()
+            )
+        except SQLAlchemyError as e:
+            raise GarmentStoreError("database error") from e
+        return results
 
 
 # --- Public Factory  ---

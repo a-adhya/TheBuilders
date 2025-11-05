@@ -63,7 +63,6 @@ docker-compose.override.yml
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
-*.xcodeproj/project.pbxproj
 *.xcuserdatad/
 *.DS_Store
 

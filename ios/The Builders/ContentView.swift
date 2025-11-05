@@ -6,21 +6,16 @@
 //
 
 import SwiftUI
-import Combine
-
-class TabSelectionManager: ObservableObject {
-    @Published var selectedTab: Int = 0
-}
 
 struct ContentView: View {
-    @StateObject private var tabSelection = TabSelectionManager()
+    @State private var selectedTab = 0
     
     var body: some View {
-        TabView(selection: $tabSelection.selectedTab) {
+        TabView(selection: $selectedTab) {
             // Home tab
             HomeView()
                 .tabItem {
-                    Image(systemName: tabSelection.selectedTab == 0 ? "house.fill" : "house")
+                    Image(systemName: selectedTab == 0 ? "house.fill" : "house")
                     Text("Home")
                 }
                 .tag(0)
@@ -28,7 +23,7 @@ struct ContentView: View {
             // Outfit Generator tab
             OutfitGeneratorView()
                 .tabItem {
-                    Image(systemName: tabSelection.selectedTab == 1 ? "tshirt.fill" : "tshirt")
+                    Image(systemName: selectedTab == 1 ? "tshirt.fill" : "tshirt")
                     Text("Outfit\nGenerator")
                 }
                 .tag(1)
@@ -36,7 +31,7 @@ struct ContentView: View {
             // Feedback tab
             FeedbackView()
                 .tabItem {
-                    Image(systemName: tabSelection.selectedTab == 2 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
+                    Image(systemName: selectedTab == 2 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
                     Text("Feedback")
                 }
                 .tag(2)
@@ -50,7 +45,6 @@ struct ContentView: View {
                 .tag(3)
         }
         .accentColor(.purple)
-        .environmentObject(tabSelection)
         .onAppear {
             // Customize tab bar appearance
             let appearance = UITabBarAppearance()
