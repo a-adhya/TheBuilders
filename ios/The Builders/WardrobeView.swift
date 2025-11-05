@@ -13,6 +13,7 @@ struct WardrobeView: View {
     @State private var showLaundry = false
     @State private var selectedIndex = 0
     @State private var showingAddItem = false
+    @State private var showingAddItemWithText = false
     @State private var displayedItems: [ClothingItem] = []
     
     let categories = ClothingItem.Category.allCases.map { $0.rawValue }
@@ -33,8 +34,8 @@ struct WardrobeView: View {
                 // Content area
                 clothingItemsGrid
                 
-                // Add Item button
-                addItemButton
+                // Add Item buttons
+                addItemButtons
             }
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
@@ -42,6 +43,14 @@ struct WardrobeView: View {
         }
         .sheet(isPresented: $showingAddItem) {
             AddClothingItemView()
+        }
+        .sheet(isPresented: $showingAddItemWithText) {
+            AddItemWithTextView(wardrobeManager: wardrobeManager)
+                .onDisappear {
+                    Task {
+                        await refreshItems()
+                    }
+                }
         }
         .onChange(of: showLaundry) { _, _ in
             Task { await refreshItems() }
@@ -144,18 +153,33 @@ struct WardrobeView: View {
         }
     }
     
-    private var addItemButton: some View {
-        Button(action: {
-            showingAddItem = true
-        }) {
-            Text("Add Item +")
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.purple.opacity(0.7))
-                .cornerRadius(25)
+    private var addItemButtons: some View {
+        VStack(spacing: 12) {
+            Button(action: {
+                showingAddItem = true
+            }) {
+                Text("Add Item with Image+")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.purple.opacity(0.7))
+                    .cornerRadius(25)
+            }
+            
+            Button(action: {
+                showingAddItemWithText = true
+            }) {
+                Text("Add Item with Text+")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.purple.opacity(0.7))
+                    .cornerRadius(25)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 100) // Extra space for tab bar

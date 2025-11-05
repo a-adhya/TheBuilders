@@ -114,4 +114,11 @@ class WardrobeManager: ObservableObject {
             // ignore for mock
         }
     }
+    
+    // Create a new garment
+    func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO {
+        let created = try await api.createGarment(garment)
+        await load()
+        return created
+    }
 }
