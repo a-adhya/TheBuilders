@@ -2,7 +2,6 @@
 from db.driver import make_engine, make_session_factory, create_tables
 from services.garment_service import DbGarmentService
 from api.schema import CreateGarmentRequest, UpdateGarmentRequest
-from sqlalchemy import select
 import pytest
 
 

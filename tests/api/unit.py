@@ -101,7 +101,7 @@ def test_create_garment_unit():
         "dirty": False,
     }
 
-    resp = client.post("/create_garment", json=payload)
+    resp = client.post("/garments", json=payload)
     assert resp.status_code == 201
     body = resp.json()
 
@@ -133,15 +133,15 @@ def test_delete_garment_unit():
     }
 
     app.dependency_overrides[get_garment_service] = lambda: fake
-    payload = {"id": test_id}
 
-    resp = client.request("DELETE", "/delete_garment", json=payload)
+    # call the new path-based delete endpoint
+    resp = client.delete(f"/garments/{test_id}")
     assert resp.status_code == 200
     body = resp.json()
     assert body["id"] == test_id
 
     # ensure the item is gone from the wardrobe
-    resp2 = client.get("/api/item/get?user_id=1")
+    resp2 = client.get("/garments/1")
     assert resp2.status_code == 200
     body2 = resp2.json()
     assert isinstance(body2["garments"], list)
@@ -172,7 +172,7 @@ def test_get_wardrobe_by_user():
     fake = FakeGarmentService()
     app.dependency_overrides[get_garment_service] = lambda: fake
 
-    resp = client.get("/api/item/get?user_id=1")
+    resp = client.get("/garments/1")
     assert resp.status_code == 200
     body = resp.json()
     assert "garments" in body

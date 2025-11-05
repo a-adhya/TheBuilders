@@ -4,31 +4,30 @@ from contextlib import asynccontextmanager
 from api.schema import (
     CreateGarmentRequest,
     CreateGarmentResponse,
-    DeleteGarmentRequest, DeleteGarmentResponse, UpdateGarmentRequest,
+    DeleteGarmentResponse,
+    UpdateGarmentRequest,
     ListByOwnerResponse,
     GenerateOutfitRequest,
     GenerateOutfitResponse,
     ChatRequest,
     ChatResponse,
 )
-from api.validate import validate_create_garment_request, validate_update_garment_request
+from api.validate import (
+    validate_create_garment_request,
+    validate_update_garment_request,
+)
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
 from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
-from models.enums import Category
 from services.outfit_generator_service import OutfitGeneratorService
 from services.chat_service import ChatService
-from typing import List, Optional
-from dotenv import load_dotenv
-import os
 
 from sqlalchemy.exc import OperationalError
 
 # Hard-coded DATABASE_URL for local development (connects to the MySQL container)
 DATABASE_URL = "mysql+pymysql://apiuser:apipass@127.0.0.1:3306/testdb"
 
-# We'll create the engine and session factory at startup so failures are surfaced clearly.
 engine = None
 SessionFactory = None
 
@@ -64,10 +63,27 @@ def get_chat_service() -> ChatService:
     return ChatService()
 
 
-@app.post("/create_garment", response_model=CreateGarmentResponse, status_code=201)
+def get_outfit_generator_service() -> OutfitGeneratorService:
+    return OutfitGeneratorService()
+
+
+@app.post("/garments", response_model=CreateGarmentResponse, status_code=201)
 def create_garment(
     payload: CreateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
 ):
+    """
+    Create a new garment.
+
+    Request body:
+    - owner (int): user id owning the garment.
+    - category (int): category id.
+    - color (str): hex color (e.g. "#000000").
+    - name (str): garment name.
+    - material (int): material id.
+    - image_url (str): image path/URL.
+    - dirty (bool): is the garment dirty.
+    """
+
     validate_create_garment_request(payload)
     garment = Garment(
         owner=payload.owner,
@@ -87,10 +103,27 @@ def create_garment(
         raise HTTPException(status_code=500, detail="internal error")
 
 
-@app.patch("/garments/{id}", response_model=CreateGarmentResponse)
+@app.patch("/garments/{id}", response_model=CreateGarmentResponse, status_code=200)
 def update_garment(
-    id: int, payload: UpdateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
+    id: int,
+    payload: UpdateGarmentRequest,
+    svc: GarmentService = Depends(get_garment_service),
 ):
+    """
+    Update an existing garment.
+
+    Path parameter:
+    - id (int): garment id to update.
+
+    Request body (UpdateGarmentRequest; fields optional):
+    - owner (int)
+    - category (int)
+    - color (str) e.g. "#000000"
+    - name (str)
+    - material (int)
+    - image_url (str)
+    - dirty (bool)
+    """
     # validate partial fields
     validate_update_garment_request(payload)
     try:
@@ -104,27 +137,11 @@ def update_garment(
         raise HTTPException(status_code=500, detail="internal error")
 
 
-# Get Clothing Items
-
-# Endpoint: /api/item/get
-# Method: GET
-# Description: Retrieve clothing items (optionally filtered by user, tag, item type).
-# Example Request:
-# GET /api/item/get?user_id=5&type=top
-# Example Response:
-# {
-#   "items": [
-#     <clothing object>,
-#     ...
-#   ]
-# }
-# Response Codes:
-# 200 – Success
-# 404 – No items found
-# 401 – Unauthorized
-
-@app.get("/api/item/get", response_model=ListByOwnerResponse, status_code=200)
-def getWardrobe(user_id: int, category: Optional[Category] = None, svc: GarmentService = Depends(get_garment_service)):
+@app.get("/garments/{user_id}", response_model=ListByOwnerResponse, status_code=200)
+def get_garments_by_user(
+    user_id: int,
+    svc: GarmentService = Depends(get_garment_service),
+):
     """
     Retrieve clothing items filtered by user id.
 
@@ -132,39 +149,44 @@ def getWardrobe(user_id: int, category: Optional[Category] = None, svc: GarmentS
     - user_id (int): required. Returns all garments owned by the user.
     """
 
-    if user_id is None:
-        raise HTTPException(
-            status_code=400, detail="user_id query parameter is required")
-
     try:
         response = svc.list_by_owner(user_id)
         if not response.garments:
             # return empty response with 200
-            return ListByOwnerResponse(garments=[], category=category)
+            return ListByOwnerResponse(garments=[])
         return response
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
 
 
-@app.post("/generate_outfit", response_model=GenerateOutfitResponse)
+@app.post("/generate/{user_id}", response_model=GenerateOutfitResponse)
 def generate_outfit(
+    user_id: int,
     payload: GenerateOutfitRequest,
-    user_id: Optional[int] = None,
     svc: GarmentService = Depends(get_garment_service),
-    outfit_generator: OutfitGeneratorService = Depends(
-        lambda: OutfitGeneratorService())
+    outfit_generator: OutfitGeneratorService = Depends(get_outfit_generator_service),
 ):
-    if user_id is None:
-        raise HTTPException(
-            status_code=400, detail="user_id query parameter is required")
+    """
+    Generate an outfit for the given user.
+
+    Path parameter:
+    - user_id (int): user id to generate the outfit for.
+
+    Request body:
+    - optional_string (str, optional): additional context to guide outfit generation.
+    """
 
     try:
         garments = svc.list_by_owner(user_id)
         if not garments.garments:
             garments = ListByOwnerResponse(garments=[])
 
-        context = payload.optional_string if payload.optional_string else "No additional context provided."
+        context = (
+            payload.optional_string
+            if payload.optional_string
+            else "No additional context provided."
+        )
 
         return outfit_generator.generate_outfit(garments, context)
     except Exception as e:
@@ -177,18 +199,21 @@ def chat(
     payload: ChatRequest,
     chat_svc: ChatService = Depends(get_chat_service),
 ):
-    """Chat endpoint that accepts a conversation history and optional system prompt.
-
-    Request body example:
-    {
-      "messages": [{"role": "user", "content": "Hello"}],
-      "system": "You are a helpful assistant."
-    }
     """
+    Chat endpoint.
+
+    Request body:
+    - messages (list): conversation messages [{'role': str, 'content': str}].
+
+    Response:
+    - ChatResponse: generated response text.
+    """
+
     try:
         if not payload.messages or not isinstance(payload.messages, list):
             raise HTTPException(
-                status_code=400, detail="messages is required and must be a list")
+                status_code=400, detail="messages is required and must be a list"
+            )
 
         resp_text = chat_svc.generate_response(
             # using model_dump() instead of deprecated dict()
@@ -200,14 +225,18 @@ def chat(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
-    
-@app.delete("/delete_garment", response_model=DeleteGarmentResponse)
-def delete_garment(
-    payload: DeleteGarmentRequest,
-    svc: GarmentService = Depends(get_garment_service)
-):
+
+
+@app.delete("/garments/{id}", response_model=DeleteGarmentResponse)
+def delete_garment(id: int, svc: GarmentService = Depends(get_garment_service)):
+    """
+    Delete an existing garment.
+
+    Path parameter:
+    - id (int): garment id to delete.
+    """
     try:
-        out = svc.delete(payload.id)
+        out = svc.delete(id)
         return out
     except ValueError:
         # not found
