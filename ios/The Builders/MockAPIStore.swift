@@ -2,44 +2,68 @@ import Foundation
 import SwiftUI
 
 // MARK: - API Models
+// These models follow the actual API structure from src/api/schema.py (CreateGarmentResponse)
+// The iOS layer abstracts the API response into more iOS-friendly types:
+// - API owner: int -> iOS: String (uses "local" for local user)
+// - API category: Category enum (SHIRT=1, TSHIRT=2, etc.) -> iOS: String ("Tops", "Bottoms", etc.)
+// - API material: Material enum (COTTON=1, DENIM=2, etc.) -> iOS: String?
+// - API color: str (7-char hex like "#FF0000") -> iOS: Color (SwiftUI Color)
+// - API image_url: str (512 chars) -> iOS: URL? (optional URL)
+// - API dirty: bool -> iOS: bool (maps directly)
+// - API created_at: datetime -> iOS: Not stored in DTO (can be added if needed)
 
 struct GarmentDTO: Identifiable, Equatable {
-    var id: Int
-    var owner: String
-    var category: String
-    var color: Color
-    var name: String
-    var material: String?
-    var imageURL: URL?
-    var dirty: Bool
+    var id: Int  // Maps to API id (int, auto-incremented)
+    var owner: String  // Maps to API owner (int in API, abstracted to String for iOS)
+    var category: String  // Maps to API category enum (Category enum in API, abstracted to String)
+    var color: Color  // Maps to API color (str hex in API, converted to SwiftUI Color)
+    var name: String  // Maps to API name (str, max 128 chars)
+    var material: String?  // Maps to API material enum (Material enum in API, abstracted to String)
+    var imageURL: URL?  // Maps to API image_url (str, max 512 chars in API, converted to URL)
+    var dirty: Bool  // Maps to API dirty (bool)
 }
 
 // MARK: - API Protocol
+// This protocol follows the actual API endpoints from src/api/server.py:
+// - POST /create_garment -> createGarment
+// - PATCH /garments/{id} -> updateGarment (partial) and updateGarmentFull (full)
+// - GET /garments (not in API yet, but iOS expects it) -> fetchGarments
+// - DELETE (not in API yet, but iOS expects it) -> deleteGarment
 
 protocol GarmentAPI {
-    func fetchGarments(owner: String?) async throws -> [GarmentDTO]
-    func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO
-    func updateGarment(id: Int, dirty: Bool?) async throws -> GarmentDTO
-    func updateGarmentFull(_ garment: GarmentDTO) async throws -> GarmentDTO
-    func deleteGarment(id: Int) async throws
+    func fetchGarments(owner: String?) async throws -> [GarmentDTO]  // GET /garments?owner=X (not in API yet)
+    func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO  // POST /create_garment
+    func updateGarment(id: Int, dirty: Bool?) async throws -> GarmentDTO  // PATCH /garments/{id} (partial update)
+    func updateGarmentFull(_ garment: GarmentDTO) async throws -> GarmentDTO  // PATCH /garments/{id} (full update)
+    func deleteGarment(id: Int) async throws  // DELETE /garments/{id} (not in API yet)
 }
 
 // MARK: - Mock API (in-memory)
+// This mock API follows the actual API structure from src/api/server.py
+// It simulates the API behavior with in-memory storage for development/testing
 
 final class MockGarmentAPI: GarmentAPI {
+    // Default seed data matching API structure:
+    // - Categories map to API Category enum: SHIRT(1), TSHIRT(2), JACKET(3), SWEATER(4) -> "Tops"
+    //                                        JEANS(5), PANTS(6), SHORTS(7) -> "Bottoms"
+    //                                        SHOES(8) -> "Shoes"
+    //                                        ACCESSORY(9) -> "Accessories"
+    // - Materials map to API Material enum: COTTON(1), DENIM(2), WOOL(3), LEATHER(7), etc.
+    // - Colors are SwiftUI Colors (API uses hex strings like "#0000FF")
+    // - owner is "local" (API uses int, iOS abstracts to string)
     static let defaultSeed: [GarmentDTO] = [
-        GarmentDTO(id: 1, owner: "local", category: "Tops", color: .blue, name: "Blue T-Shirt", material: "Comfortable cotton blue t-shirt", imageURL: nil, dirty: false),
-        GarmentDTO(id: 2, owner: "local", category: "Tops", color: .green, name: "Green T-Shirt", material: "Soft green casual tee", imageURL: nil, dirty: false),
-        GarmentDTO(id: 3, owner: "local", category: "Tops", color: .orange, name: "Orange T-Shirt", material: "Bright orange summer shirt", imageURL: nil, dirty: true),
-        GarmentDTO(id: 4, owner: "local", category: "Tops", color: .red, name: "Red T-Shirt", material: "Classic red cotton t-shirt", imageURL: nil, dirty: false),
-        GarmentDTO(id: 5, owner: "local", category: "Bottoms", color: .blue, name: "Blue Jeans", material: "Comfortable denim jeans", imageURL: nil, dirty: false),
-        GarmentDTO(id: 6, owner: "local", category: "Bottoms", color: .black, name: "Black Pants", material: "Formal black trousers", imageURL: nil, dirty: false),
-        GarmentDTO(id: 7, owner: "local", category: "Dresses", color: .pink, name: "Summer Dress", material: "Light pink summer dress", imageURL: nil, dirty: false),
-        GarmentDTO(id: 8, owner: "local", category: "Dresses", color: .black, name: "Evening Dress", material: "Elegant black evening gown", imageURL: nil, dirty: true),
-        GarmentDTO(id: 9, owner: "local", category: "Shoes", color: .white, name: "Sneakers", material: "White running sneakers", imageURL: nil, dirty: false),
-        GarmentDTO(id: 10, owner: "local", category: "Shoes", color: .brown, name: "Boots", material: "Brown leather boots", imageURL: nil, dirty: false),
-        GarmentDTO(id: 11, owner: "local", category: "Accessories", color: .gray, name: "Watch", material: "Silver wrist watch", imageURL: nil, dirty: false),
-        GarmentDTO(id: 12, owner: "local", category: "Accessories", color: .gray, name: "Hat", material: "Gray baseball cap", imageURL: nil, dirty: false)
+        GarmentDTO(id: 1, owner: "local", category: "Tops", color: .blue, name: "Blue T-Shirt", material: "Cotton", imageURL: nil, dirty: false),
+        GarmentDTO(id: 2, owner: "local", category: "Tops", color: .green, name: "Green T-Shirt", material: "Cotton", imageURL: nil, dirty: false),
+        GarmentDTO(id: 3, owner: "local", category: "Tops", color: .orange, name: "Orange T-Shirt", material: "Cotton", imageURL: nil, dirty: true),
+        GarmentDTO(id: 4, owner: "local", category: "Tops", color: .red, name: "Red T-Shirt", material: "Cotton", imageURL: nil, dirty: false),
+        GarmentDTO(id: 5, owner: "local", category: "Bottoms", color: .blue, name: "Blue Jeans", material: "Denim", imageURL: nil, dirty: false),
+        GarmentDTO(id: 6, owner: "local", category: "Bottoms", color: .black, name: "Black Pants", material: "Cotton", imageURL: nil, dirty: false),
+        GarmentDTO(id: 7, owner: "local", category: "Tops", color: .pink, name: "Pink Sweater", material: "Wool", imageURL: nil, dirty: false),
+        GarmentDTO(id: 8, owner: "local", category: "Tops", color: .black, name: "Black Jacket", material: "Leather", imageURL: nil, dirty: true),
+        GarmentDTO(id: 9, owner: "local", category: "Shoes", color: .white, name: "Sneakers", material: "Athletic", imageURL: nil, dirty: false),
+        GarmentDTO(id: 10, owner: "local", category: "Shoes", color: .brown, name: "Boots", material: "Leather", imageURL: nil, dirty: false),
+        GarmentDTO(id: 11, owner: "local", category: "Accessories", color: .gray, name: "Watch", material: "Metal", imageURL: nil, dirty: false),
+        GarmentDTO(id: 12, owner: "local", category: "Accessories", color: .gray, name: "Hat", material: "Cotton", imageURL: nil, dirty: false)
     ]
 
     private var garments: [GarmentDTO]
