@@ -1,4 +1,4 @@
-from typing import Protocol, List
+from typing import Protocol
 from api.schema import CreateGarmentRequest, UpdateGarmentRequest, GarmentResponse, ListByOwnerResponse
 from db.garment_store import MakeGarmentStore
 from db.driver import session_scope
@@ -13,11 +13,6 @@ class GarmentService(Protocol):
 
 
 class DbGarmentService:
-    """Service implementation that uses DB. This sits between the API layer and DB layer
-    This layer will handle the business logic. The API layer handles the routing / validation.
-    The DB Layer handles the storage / persistence of objects.
-    """
-
     def __init__(self, session_factory) -> None:
         self._session_factory = session_factory
 
