@@ -135,8 +135,8 @@ struct FeedbackView: View {
                     .padding(.vertical, 12)
                 }
                 .background(Color(UIColor.systemGray6))
-                .contentShape(Rectangle())  // ⭐️ 添加这行
-                .onTapGesture {             // ⭐️ 添加这个
+                .contentShape(Rectangle())
+                .onTapGesture {
                     hideKeyboard()
                 }
                 .onChange(of: messages.count) { oldValue, newValue in
