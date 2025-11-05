@@ -135,8 +135,11 @@ struct FeedbackView: View {
                     .padding(.vertical, 12)
                 }
                 .background(Color(UIColor.systemGray6))
+                .contentShape(Rectangle())  // ⭐️ 添加这行
+                .onTapGesture {             // ⭐️ 添加这个
+                    hideKeyboard()
+                }
                 .onChange(of: messages.count) { oldValue, newValue in
-                    // Auto-scroll to bottom on new message
                     if let lastID = messages.last?.id {
                         withAnimation { proxy.scrollTo(lastID, anchor: .bottom) }
                     }
@@ -287,6 +290,12 @@ struct FeedbackView: View {
         let outfitKeywords = ["outfit", "clothes", "clothing", "wear", "dress", "shirt", "pants", "jacket", "coat", "style", "fashion", "what to wear", "what should i wear"]
         
         return outfitKeywords.contains { lowercased.contains($0) }
+    }
+    
+    // hide keyboard
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), 
+                                       to: nil, from: nil, for: nil)
     }
 }
 
