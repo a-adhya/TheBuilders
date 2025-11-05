@@ -1,7 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional
-from typing import List
+from typing import Optional, List, Union
 
 from models.enums import Category, Material
 
@@ -54,6 +53,20 @@ class GenerateOutfitRequest(BaseModel):
 
 class GenerateOutfitResponse(BaseModel):
     garments: list[GarmentResponse]
+
+
+class ConversationMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    # accept a full conversation history (list of prior turns)
+    messages: List[ConversationMessage]
+
+
+class ChatResponse(BaseModel):
+    response: str
     
 class DeleteGarmentRequest(BaseModel):
     id: int
