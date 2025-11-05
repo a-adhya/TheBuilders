@@ -16,35 +16,13 @@ struct ConversationMessage: Codable {
 
 struct ChatRequest: Codable {
     let messages: [ConversationMessage]
-    let system: String?
     
-    init(messages: [ConversationMessage], system: String? = nil) {
+    init(messages: [ConversationMessage]) {
         self.messages = messages
-        self.system = system
     }
 }
 
-// MARK: - Weather Context (for future backend integration) （Maybe)
-// This struct can be used when backend supports weatherContext field
-struct WeatherContext: Codable {
-    let condition: String
-    let temperatureF: Int
-    let feelsLikeF: Int
-    let lowF: Int
-    let highF: Int
-    let windMph: Int
-    let humidityPct: Int
-    
-    init(from weatherData: WeatherData) {
-        self.condition = weatherData.condition
-        self.temperatureF = weatherData.temperatureF
-        self.feelsLikeF = weatherData.feelsLikeF
-        self.lowF = weatherData.lowF
-        self.highF = weatherData.highF
-        self.windMph = weatherData.windMph
-        self.humidityPct = weatherData.humidityPct
-    }
-}
+
 
 struct ChatResponse: Codable {
     let response: String
@@ -53,7 +31,7 @@ struct ChatResponse: Codable {
 // MARK: - Chat Service Protocol
 
 protocol ChatServiceProtocol {
-    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?, systemPrompt: String?) async throws -> String
+    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?) async throws -> String
 }
 
 // MARK: - Chat Service Implementation
@@ -67,12 +45,48 @@ final class ChatService: ChatServiceProtocol {
         self.session = session
     }
     
-    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?, systemPrompt: String? = nil) async throws -> String {
+    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?) async throws -> String {
         guard let url = URL(string: "\(baseURL)/chat") else {
             throw ChatError.invalidURL
         }
         
-        let request = ChatRequest(messages: messages, system: systemPrompt)
+        // Start with the original conversation messages
+        var processedMessages = messages
+        
+        // Check if weather information already exists in conversation history
+        let hasWeatherInfo = messages.contains { message in
+            message.content.contains("this is my current weather context") ||
+            message.content.contains("Current weather conditions") ||
+            message.content.contains("Please give me recommendations based on this weather context")
+        }
+        
+        // Only append weather data if:
+        // 1. We have weather data
+        // 2. The last message is from user
+        // 3. Weather info hasn't been appended before in this conversation
+        if let lastMessage = messages.last, 
+           lastMessage.role == "user",
+           let weatherData = weatherData,
+           !hasWeatherInfo {
+            let weatherContext = createWeatherContext(from: weatherData)
+            // Append weather context to the last user message
+            let enhancedContent = lastMessage.content + "\n\n" + weatherContext
+            processedMessages[processedMessages.count - 1] = ConversationMessage(
+                role: "user",
+                content: enhancedContent
+            )
+        }
+        
+        // Ensure all messages have valid roles (only "user" or "assistant")
+        // Backend only accepts "user" or "assistant" roles
+        let validMessages = processedMessages.filter { $0.role == "user" || $0.role == "assistant" }
+        
+        // Ensure we still have at least one message after filtering
+        guard !validMessages.isEmpty else {
+            throw ChatError.invalidRequest("At least one message with valid role (user or assistant) is required")
+        }
+        
+        let request = ChatRequest(messages: validMessages)
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -101,6 +115,21 @@ final class ChatService: ChatServiceProtocol {
             throw ChatError.decodingFailed(error)
         }
     }
+    
+    private func createWeatherContext(from weatherData: WeatherData) -> String {
+        return """
+        Hi, this is my current weather context:
+        - Condition: \(weatherData.condition)
+        - Temperature: \(weatherData.temperatureF)°F (feels like \(weatherData.feelsLikeF)°F)
+        - High/Low: \(weatherData.highF)°F / \(weatherData.lowF)°F
+        - Wind: \(weatherData.windMph) mph
+        - Humidity: \(weatherData.humidityPct)%
+        - Sunset: \(weatherData.sunset)
+        - Moon phase: \(weatherData.moonPhase)
+        
+        Please give me recommendations based on this weather context.
+        """
+    }
 }
 
 // MARK: - Mock Chat Service (for testing only)
@@ -113,7 +142,7 @@ final class MockChatService: ChatServiceProtocol {
         self.delay = delay
     }
     
-    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?, systemPrompt: String? = nil) async throws -> String {
+    func sendMessage(messages: [ConversationMessage], weatherData: WeatherData?) async throws -> String {
         // Simulate network delay
         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
         
@@ -180,6 +209,7 @@ enum ChatError: LocalizedError {
     case invalidResponse
     case serverError(Int)
     case networkError(Error)
+    case invalidRequest(String)
     
     var errorDescription: String? {
         switch self {
@@ -195,6 +225,8 @@ enum ChatError: LocalizedError {
             return "Server error with code: \(code)"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .invalidRequest(let message):
+            return message
         }
     }
 }

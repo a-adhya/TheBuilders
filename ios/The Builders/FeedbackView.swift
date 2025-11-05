@@ -16,11 +16,49 @@ struct ChatMessage: Identifiable, Equatable {
             content: text
         )
     }
+    
+    // Convert Markdown to plain text for display
+    var displayText: String {
+        return text.cleanedMarkdown()
+    }
+}
+
+extension String {
+    func cleanedMarkdown() -> String {
+        var cleaned = self
+        
+        // Remove markdown headers (##, ###, etc.) - handle multi-line
+        cleaned = cleaned.replacingOccurrences(of: #"^#+\s+"#, with: "", options: [.regularExpression, .anchorsMatchLines])
+        
+        // Remove bold markdown (**text**)
+        cleaned = cleaned.replacingOccurrences(of: #"\*\*([^*]+)\*\*"#, with: "$1", options: .regularExpression)
+        
+        // Remove italic markdown (*text* or _text_) - but be careful not to match asterisks in the middle
+        cleaned = cleaned.replacingOccurrences(of: #"(?<!\*)\*([^*]+)\*(?!\*)"#, with: "$1", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"_([^_]+)_"#, with: "$1", options: .regularExpression)
+        
+        // Remove markdown links [text](url) -> text
+        cleaned = cleaned.replacingOccurrences(of: #"\[([^\]]+)\]\([^\)]+\)"#, with: "$1", options: .regularExpression)
+        
+        // Remove markdown list markers (-, *, 1.) and replace with bullet
+        cleaned = cleaned.replacingOccurrences(of: #"^\s*[-*]\s+"#, with: "• ", options: [.regularExpression, .anchorsMatchLines])
+        cleaned = cleaned.replacingOccurrences(of: #"^\s*\d+\.\s+"#, with: "", options: [.regularExpression, .anchorsMatchLines])
+        
+        // Remove code blocks ```
+        cleaned = cleaned.replacingOccurrences(of: #"```[^`]*```"#, with: "", options: [.regularExpression, .dotMatchesLineSeparators])
+        cleaned = cleaned.replacingOccurrences(of: #"`([^`]+)`"#, with: "$1", options: .regularExpression)
+        
+        // Clean up extra whitespace and newlines
+        cleaned = cleaned.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return cleaned
+    }
 }
 
 struct FeedbackView: View {
     @State private var messages: [ChatMessage] = [
-        ChatMessage(role: .assistant, text: "Hi! I’m your personal outfit companion 🌸\nI can give you some general fashion recommendations, or you can send me your outfit and I’ll tell you what I think!")
+        ChatMessage(role: .assistant, text: "Hi! I'm your personal outfit companion 🌸\nI can give you some general fashion recommendations, or you can send me your outfit and I’ll tell you what I think!")
     ]
     @State private var inputText: String = ""
     @State private var isSending: Bool = false
@@ -88,7 +126,7 @@ struct FeedbackView: View {
             if message.role == .assistant {
                 // Assistant bubble left aligned
                 VStack(alignment: .leading) {
-                    Text(message.text)
+                    Text(message.displayText)
                         .font(.body)
                         .foregroundColor(.primary)
                         .padding(12)
@@ -177,28 +215,11 @@ struct FeedbackView: View {
                 }
                 
                 // Send to backend with weather context if needed
-                let systemPrompt: String?
-                if isOutfitRelated, let weather = weatherData {
-                    systemPrompt = """
-                    You are a fashion assistant. Consider the current weather conditions when making outfit recommendations:
-                    - Temperature: \(weather.temperatureF)°F (feels like \(weather.feelsLikeF)°F)
-                    - Conditions: \(weather.condition)
-                    - Wind: \(weather.windMph) mph
-                    - Humidity: \(weather.humidityPct)%
-                    - High/Low: \(weather.highF)°F / \(weather.lowF)°F
-                    
-                    Always incorporate these weather factors into your clothing suggestions.
-                    """
-                } else if isOutfitRelated {
-                    systemPrompt = "You are a fashion assistant. Provide helpful outfit and style advice."
-                } else {
-                    systemPrompt = nil
-                }
-                
+                // The ChatService will automatically append weather context to user messages
+                // when outfit-related questions are detected
                 let response = try await chatService.sendMessage(
                     messages: conversationMessages,
-                    weatherData: nil, // Don't send weatherContext to maintain backend compatibility
-                    systemPrompt: systemPrompt
+                    weatherData: weatherData
                 )
                 
                 // Update UI on main thread
