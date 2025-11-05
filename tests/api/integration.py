@@ -9,6 +9,13 @@ from db.schema import Garment
 from models.enums import Category, Material
 from api.server import app, get_garment_service
 from services.garment_service import DbGarmentService
+from api.server import get_chat_service
+
+
+class _DummyChat:
+    def generate_response(self, messages) -> str:
+        # return a deterministic reply for tests
+        return "Dummy reply"
 
 
 @pytest.fixture(scope="session")
@@ -63,4 +70,19 @@ def test_generate_outfit_integration(session_factory):
     assert "garments" in body
     assert any(item["name"] ==
                "IntegrationTest Shirt" for item in body["garments"])
+    app.dependency_overrides.clear()
+
+
+def test_chat_integration():
+    """Integration test for /chat endpoint using a dummy chat dependency."""
+    # Override chat service to avoid real external calls
+    app.dependency_overrides[get_chat_service] = lambda: _DummyChat()
+    client = TestClient(app)
+
+    payload = {"messages": [{"role": "user", "content": "Hello"}]}
+    resp = client.post("/chat", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body.get("response") == "Dummy reply"
+
     app.dependency_overrides.clear()

@@ -1,7 +1,16 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from api.schema import CreateGarmentRequest, CreateGarmentResponse, DeleteGarmentRequest, DeleteGarmentResponse, UpdateGarmentRequest, ListByOwnerResponse, GenerateOutfitRequest, GenerateOutfitResponse
+from api.schema import (
+    CreateGarmentRequest,
+    CreateGarmentResponse,
+    DeleteGarmentRequest, DeleteGarmentResponse, UpdateGarmentRequest,
+    ListByOwnerResponse,
+    GenerateOutfitRequest,
+    GenerateOutfitResponse,
+    ChatRequest,
+    ChatResponse,
+)
 from api.validate import validate_create_garment_request, validate_update_garment_request
 from db.driver import make_engine, make_session_factory, create_tables
 from db.schema import Garment
@@ -9,6 +18,7 @@ from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
 from models.enums import Category
 from services.outfit_generator_service import OutfitGeneratorService
+from services.chat_service import ChatService
 from typing import List, Optional
 from dotenv import load_dotenv
 import os
@@ -48,6 +58,10 @@ app = FastAPI(lifespan=lifespan)
 
 def get_garment_service() -> GarmentService:
     return DbGarmentService(SessionFactory)
+
+
+def get_chat_service() -> ChatService:
+    return ChatService()
 
 
 @app.post("/create_garment", response_model=CreateGarmentResponse, status_code=201)
@@ -153,6 +167,36 @@ def generate_outfit(
         context = payload.optional_string if payload.optional_string else "No additional context provided."
 
         return outfit_generator.generate_outfit(garments, context)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(
+    payload: ChatRequest,
+    chat_svc: ChatService = Depends(get_chat_service),
+):
+    """Chat endpoint that accepts a conversation history and optional system prompt.
+
+    Request body example:
+    {
+      "messages": [{"role": "user", "content": "Hello"}],
+      "system": "You are a helpful assistant."
+    }
+    """
+    try:
+        if not payload.messages or not isinstance(payload.messages, list):
+            raise HTTPException(
+                status_code=400, detail="messages is required and must be a list")
+
+        resp_text = chat_svc.generate_response(
+            # using model_dump() instead of deprecated dict()
+            messages=[m.model_dump() for m in payload.messages]
+        )
+        return ChatResponse(response=resp_text)
+    except HTTPException:
+        raise
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
