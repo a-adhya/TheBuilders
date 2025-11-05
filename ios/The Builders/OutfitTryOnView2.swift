@@ -2,7 +2,7 @@
 //  OutfitTryOnView2.swift
 //  TheBuilders
 //
-//  Created by Cassie Liu on 10/28/25.
+//  Created by Angshu Adhya on 11/4/2025.
 //
 
 import SwiftUI

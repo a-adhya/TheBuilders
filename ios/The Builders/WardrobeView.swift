@@ -2,7 +2,7 @@
 //  WardrobeView.swift
 //  TheBuilders
 //
-//  Created by Cassie Liu on 10/28/25.
+//  Created by Cassie Lie on 10/28/2025.
 //
 
 import SwiftUI
