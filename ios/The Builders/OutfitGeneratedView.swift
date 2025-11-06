@@ -8,24 +8,31 @@
 import SwiftUI
 
 struct OutfitGeneratedView: View {
-    @State var currentOutfit: Outfit
+    @State var currentOutfit: Outfit?
     @Environment(\.dismiss) private var dismiss
     @State private var navigateToTryOn = false
     @State private var isRegenerating = false
     @State private var navigateToRegenerate = false
+    @State private var errorMessage: String?
     
-    private let outfitAPI: OutfitAPI = MockOutfitAPI()
+    private let outfitAPI: OutfitAPI = RealOutfitAPI()
+    private let userId: Int = 1 // Default user ID, can be made dynamic later
     
-    init(outfit: Outfit) {
+    init(outfit: Outfit?) {
         _currentOutfit = State(initialValue: outfit)
     }
     
     private var outfitItems: [ClothingItem] {
-        var items = [currentOutfit.top, currentOutfit.bottom, currentOutfit.shoes]
-        if let accessories = currentOutfit.accessories {
+        guard let outfit = currentOutfit else { return [] }
+        var items = [outfit.top, outfit.bottom, outfit.shoes]
+        if let accessories = outfit.accessories {
             items.append(accessories)
         }
         return items
+    }
+    
+    private var hasError: Bool {
+        currentOutfit == nil || errorMessage != nil || outfitItems.isEmpty
     }
     
     private var gridColumns: [GridItem] {
@@ -68,45 +75,35 @@ struct OutfitGeneratedView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Outfit items display in 2-column grid with constrained height
-                    LazyVGrid(columns: gridColumns, spacing: 12) {
-                        ForEach(outfitItems, id: \.id) { item in
-                            OutfitItemCard(item: item)
-                                .frame(maxHeight: 150) // Constrain height so buttons are visible
+                    // Error message or outfit items display
+                    if hasError {
+                        VStack(spacing: 16) {
+                            Text(errorMessage ?? "Error: no garments found")
+                                .font(.body)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding()
                         }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Action buttons
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            navigateToTryOn = true
-                        }) {
-                            Text("See outfit on avatar")
-                                .font(.title3)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(Color.purple)
-                                .cornerRadius(28)
-                        }
-                        .disabled(isRegenerating)
-                        
-                        Button(action: {
-                            Task {
-                                await regenerateOutfit()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                    } else {
+                        // Outfit items display in 2-column grid with constrained height
+                        LazyVGrid(columns: gridColumns, spacing: 12) {
+                            ForEach(outfitItems, id: \.id) { item in
+                                OutfitItemCard(item: item)
+                                    .frame(maxHeight: 150) // Constrain height so buttons are visible
                             }
-                        }) {
-                            if isRegenerating {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 56)
-                                    .background(Color.purple)
-                                    .cornerRadius(28)
-                            } else {
-                                Text("Regenerate outfit")
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Action buttons (only show if no error)
+                    if !hasError {
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                navigateToTryOn = true
+                            }) {
+                                Text("See outfit on avatar")
                                     .font(.title3)
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
@@ -115,11 +112,36 @@ struct OutfitGeneratedView: View {
                                     .background(Color.purple)
                                     .cornerRadius(28)
                             }
+                            .disabled(isRegenerating)
+                            
+                            Button(action: {
+                                Task {
+                                    await regenerateOutfit()
+                                }
+                            }) {
+                                if isRegenerating {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 56)
+                                        .background(Color.purple)
+                                        .cornerRadius(28)
+                                } else {
+                                    Text("Regenerate outfit")
+                                        .font(.title3)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 56)
+                                        .background(Color.purple)
+                                        .cornerRadius(28)
+                                }
+                            }
+                            .disabled(isRegenerating)
                         }
-                        .disabled(isRegenerating)
+                        .padding(.horizontal)
+                        .padding(.bottom, 20)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
                 }
                 .padding(.top, 20)
                 .padding(.bottom, 100) // Extra padding for tab bar
@@ -127,16 +149,20 @@ struct OutfitGeneratedView: View {
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $navigateToTryOn) {
-                OutfitTryOnView1(outfit: currentOutfit)
-                    .onAppear {
-                        navigateToTryOn = false
-                    }
+                if let outfit = currentOutfit {
+                    OutfitTryOnView1(outfit: outfit)
+                        .onAppear {
+                            navigateToTryOn = false
+                        }
+                }
             }
             .navigationDestination(isPresented: $navigateToRegenerate) {
-                OutfitTryOnView2(outfit: currentOutfit)
-                    .onAppear {
-                        navigateToRegenerate = false
-                    }
+                if let outfit = currentOutfit {
+                    OutfitTryOnView2(outfit: outfit)
+                        .onAppear {
+                            navigateToRegenerate = false
+                        }
+                }
             }
         }
     }
@@ -144,20 +170,40 @@ struct OutfitGeneratedView: View {
     private func regenerateOutfit() async {
         await MainActor.run {
             isRegenerating = true
+            errorMessage = nil
         }
         
         do {
-            let newOutfit = try await outfitAPI.generateOutfit(occasion: nil, preferredItems: nil, mood: nil)
+            // Call backend with empty context for regeneration
+            let garments = try await outfitAPI.generateOutfit(context: "", userId: userId)
+            
+            if garments.isEmpty {
+                await MainActor.run {
+                    errorMessage = "Error: no garments found"
+                    isRegenerating = false
+                }
+                return
+            }
+            
+            // Convert garments to Outfit structure
+            guard let outfit = garmentsToOutfit(garments: garments) else {
+                await MainActor.run {
+                    errorMessage = "Error: Could not generate outfit from available garments"
+                    isRegenerating = false
+                }
+                return
+            }
             
             await MainActor.run {
                 // Update current outfit and navigate to OutfitTryOnView2
-                self.currentOutfit = newOutfit
+                self.currentOutfit = outfit
                 self.isRegenerating = false
                 self.navigateToRegenerate = true
             }
         } catch {
             await MainActor.run {
-                self.isRegenerating = false
+                errorMessage = "Error: \(error.localizedDescription)"
+                isRegenerating = false
             }
             print("Error regenerating outfit: \(error)")
         }
