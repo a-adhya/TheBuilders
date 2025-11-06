@@ -15,7 +15,7 @@ final class ChattViewModel {
     let username = "tinyllama" // instead of uniqname
     let instruction = "Type a message…"
 
-    var message = "howdy?"
+    var message = "What's the weather in this location?"
     var errMsg = ""
     var showError = false
 }

@@ -7,11 +7,16 @@
 import MapKit
 import Observation
 
-struct Location {
+struct Location: Decodable {
     var lat: CLLocationDegrees
     var lon: CLLocationDegrees
-    var speed: CLLocationSpeed
-}
+    var speed: CLLocationSpeed = 0.0
+    
+    enum CodingKeys: String, CodingKey {
+        // to ignore other keys
+        case lat, lon
+    }
+}  
 
 @Observable
 final class LocManagerViewModel {
