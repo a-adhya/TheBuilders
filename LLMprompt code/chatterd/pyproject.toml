@@ -1,0 +1,10 @@
+[project]
+name = "chatterd"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "granian>=2.5.5",
+    "http-client>=0.1.22",
+    "httpx[http2]>=0.28.1",
+    "starlette>=0.48.0",
+]
