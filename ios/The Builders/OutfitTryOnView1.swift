@@ -14,7 +14,8 @@ struct OutfitTryOnView1: View {
     @State private var isRegenerating = false
     @State private var navigateToRegenerate = false
     
-    private let outfitAPI: OutfitAPI = MockOutfitAPI()
+    private let outfitAPI: OutfitAPI = RealOutfitAPI()
+    private let userId: Int = 1 // Default user ID, can be made dynamic later
     
     init(outfit: Outfit) {
         _currentOutfit = State(initialValue: outfit)
@@ -143,7 +144,25 @@ struct OutfitTryOnView1: View {
         }
         
         do {
-            let newOutfit = try await outfitAPI.generateOutfit(occasion: nil, preferredItems: nil, mood: nil)
+            // Call backend with empty context for regeneration
+            let garments = try await outfitAPI.generateOutfit(context: "", userId: userId)
+            
+            if garments.isEmpty {
+                await MainActor.run {
+                    self.isRegenerating = false
+                }
+                print("Error: no garments found")
+                return
+            }
+            
+            // Convert garments to Outfit structure
+            guard let newOutfit = garmentsToOutfit(garments: garments) else {
+                await MainActor.run {
+                    self.isRegenerating = false
+                }
+                print("Error: Could not generate outfit from available garments")
+                return
+            }
             
             await MainActor.run {
                 // Update current outfit and navigate to OutfitTryOnView2

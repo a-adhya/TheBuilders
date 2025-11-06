@@ -12,6 +12,14 @@ struct OutfitGeneratorView: View {
     @State private var preferredItems = ""
     @State private var mood = ""
     @FocusState private var focusedField: Field?
+    @State private var isGenerating = false
+    @State private var navigateToGenerated = false
+    @State private var generatedOutfit: Outfit?
+    @State private var showErrorAlert = false
+    @State private var apiResponseBody: String?
+    
+    private let outfitAPI: OutfitAPI = RealOutfitAPI()
+    private let userId: Int = 1 // Default user ID, can be made dynamic later
     
     enum Field: Hashable {
         case occasion, preferredItems, mood
@@ -140,22 +148,34 @@ struct OutfitGeneratorView: View {
                         }
                     }
                     
+                    
                     // Generate Outfit Button
                     Button(action: {
                         // Dismiss keyboard before generating outfit
                         focusedField = nil
-                        // TODO: Implement outfit generation logic
-                        print("Generate outfit tapped")
+                        Task {
+                            await generateOutfit()
+                        }
                     }) {
-                        Text("Generate Outfit")
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.purple)
-                            .cornerRadius(28)
+                        if isGenerating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color.purple)
+                                .cornerRadius(28)
+                        } else {
+                            Text("Generate Outfit")
+                                .font(.title3)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color.purple)
+                                .cornerRadius(28)
+                        }
                     }
+                    .disabled(isGenerating)
                    
                     
                     // Bottom spacing for tab bar
@@ -169,6 +189,75 @@ struct OutfitGeneratorView: View {
             .onTapGesture {
                 // Dismiss keyboard when tapping the background
                 focusedField = nil
+            }
+            .alert("API Response", isPresented: $showErrorAlert) {
+                Button("OK", role: .cancel) {
+                    apiResponseBody = nil
+                }
+            } message: {
+                if let responseBody = apiResponseBody {
+                    Text(responseBody)
+                }
+            }
+            .navigationDestination(isPresented: $navigateToGenerated) {
+                OutfitGeneratedView(outfit: generatedOutfit)
+            }
+        }
+    }
+    
+    private func generateOutfit() async {
+        await MainActor.run {
+            isGenerating = true
+        }
+        
+        // Build context string from form fields
+        var contextParts: [String] = []
+        if !occasion.isEmpty {
+            contextParts.append("Occasion: \(occasion)")
+        }
+        if !preferredItems.isEmpty {
+            contextParts.append("Preferred items: \(preferredItems)")
+        }
+        if !mood.isEmpty {
+            contextParts.append("Mood: \(mood)")
+        }
+        let context = contextParts.joined(separator: ". ")
+        
+        do {
+            // Call the backend API
+            let garments = try await outfitAPI.generateOutfit(context: context, userId: userId)
+            
+            // Check if we have garments
+            if garments.isEmpty {
+                await MainActor.run {
+                    apiResponseBody = "Error: no garments found"
+                    showErrorAlert = true
+                    isGenerating = false
+                }
+                return
+            }
+            
+            // Convert garments to Outfit structure
+            guard let outfit = garmentsToOutfit(garments: garments) else {
+                await MainActor.run {
+                    apiResponseBody = "Error: Could not generate outfit from available garments"
+                    showErrorAlert = true
+                    isGenerating = false
+                }
+                return
+            }
+            
+            await MainActor.run {
+                generatedOutfit = outfit
+                isGenerating = false
+                navigateToGenerated = true
+            }
+        } catch {
+            await MainActor.run {
+                // Show the API response body in a popup
+                apiResponseBody = error.localizedDescription
+                showErrorAlert = true
+                isGenerating = false
             }
         }
     }
