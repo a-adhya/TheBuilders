@@ -3,8 +3,10 @@ name = "chatterd"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "dataclasses-json>=0.6.7",
     "granian>=2.5.5",
     "http-client>=0.1.22",
     "httpx[http2]>=0.28.1",
+    "sse-starlette>=3.0.3",
     "starlette>=0.48.0",
 ]
