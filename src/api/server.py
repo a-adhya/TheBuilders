@@ -165,7 +165,8 @@ def generate_outfit(
     user_id: int,
     payload: GenerateOutfitRequest,
     svc: GarmentService = Depends(get_garment_service),
-    outfit_generator: OutfitGeneratorService = Depends(get_outfit_generator_service),
+    outfit_generator: OutfitGeneratorService = Depends(
+        get_outfit_generator_service),
 ):
     """
     Generate an outfit for the given user.
@@ -203,7 +204,7 @@ def chat(
     Chat endpoint.
 
     Request body:
-    - messages (list): conversation messages [{'role': str, 'content': str}].
+    - messages (list): conversation messages [{'role': str, 'content': list[dict] | str}].
 
     Response:
     - ChatResponse: generated response text.
