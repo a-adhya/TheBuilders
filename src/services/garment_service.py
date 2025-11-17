@@ -11,10 +11,21 @@ class GarmentService(Protocol):
     def list_by_owner(self, owner: int) -> ListByOwnerResponse: ...
     def delete(self, id: int) -> GarmentResponse: ...
 
+DEFAULT_BUCKET = "images"
 
 class DbGarmentService:
     def __init__(self, session_factory) -> None:
         self._session_factory = session_factory
+
+    def _make_image_url(self, name: str, owner: int) -> str:
+        cleaned = []
+        for ch in name.lower():
+            if ch.isalnum() or ch in (" ", "-", "_"):
+                cleaned.append(ch)
+        normalized = "".join(cleaned).replace(" ", "_")
+        base = normalized
+
+        return f"/{DEFAULT_BUCKET}/garment_{base}_{owner}"
 
     def create(self, req: CreateGarmentRequest) -> GarmentResponse:
         with session_scope(self._session_factory) as s:
@@ -25,7 +36,7 @@ class DbGarmentService:
                 material=req.material,
                 color=req.color,
                 name=req.name,
-                image_url=req.image_url,
+                image_url=self._make_image_url(req.name, req.owner),
             )
             persisted = store.create(garment)
 

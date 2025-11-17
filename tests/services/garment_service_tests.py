@@ -21,7 +21,6 @@ def test_db_garment_service_persists(sqlite_session_factory):
         color="#112233",
         name="Integration",
         material=1,
-        image_url="/img/int.png",
         dirty=False,
     )
 
@@ -33,6 +32,8 @@ def test_db_garment_service_persists(sqlite_session_factory):
     assert out.color.upper() == "#112233"
     assert out.owner == 1
     assert out.dirty == False
+    # verify image_url matches expected pattern 
+    assert out.image_url.startswith("/images/garment_integration_1")
 
 
 def test_db_garment_service_update(sqlite_session_factory):
@@ -46,7 +47,6 @@ def test_db_garment_service_update(sqlite_session_factory):
         color="#112233",
         name="To Update",
         material=1,
-        image_url="/img/update.png",
         dirty=False,
     )
 
@@ -75,7 +75,6 @@ def test_db_garment_service_delete(sqlite_session_factory):
         color="#ABCDEF",
         name="To Delete",
         material=2,
-        image_url="/img/delete.png",
         dirty=True,
     )
 

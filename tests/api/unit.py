@@ -46,7 +46,7 @@ class FakeGarmentService:
             "color": getattr(req, "color", None),
             "name": getattr(req, "name", None),
             "material": getattr(req, "material", None),
-            "image_url": getattr(req, "image_url", None),
+            "image_url": "images/garment_default_1",
             "dirty": getattr(req, "dirty", False),
             "created_at": datetime.now(timezone.utc),
         }
@@ -97,7 +97,6 @@ def test_create_garment_unit():
         "color": "#000000",
         "name": "Unit Shirt",
         "material": 1,
-        "image_url": "/img/x.png",
         "dirty": False,
     }
 
