@@ -23,7 +23,6 @@ class CreateGarmentRequest(BaseModel):
     color: str
     name: str
     material: Material
-    image_url: str
     dirty: bool
 
 

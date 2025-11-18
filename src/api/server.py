@@ -80,23 +80,13 @@ def create_garment(
     - color (str): hex color (e.g. "#000000").
     - name (str): garment name.
     - material (int): material id.
-    - image_url (str): image path/URL.
     - dirty (bool): is the garment dirty.
     """
 
     validate_create_garment_request(payload)
-    garment = Garment(
-        owner=payload.owner,
-        category=payload.category,
-        color=payload.color,
-        name=payload.name,
-        material=payload.material,
-        image_url=payload.image_url,
-        dirty=payload.dirty,
-    )
 
     try:
-        out = svc.create(garment)
+        out = svc.create(payload)
         return out
     except Exception as e:
         print(e)
