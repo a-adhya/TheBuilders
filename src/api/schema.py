@@ -68,3 +68,16 @@ class ChatResponse(BaseModel):
 
 class DeleteGarmentResponse(GarmentResponse):
     pass
+
+
+# User models
+class CreateUserRequest(BaseModel):
+    username: str
+    hashed_password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    avatar_url: str
+    created_at: datetime

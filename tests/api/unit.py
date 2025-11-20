@@ -7,9 +7,9 @@ from api.schema import (
     CreateGarmentResponse,
     ListByOwnerResponse,
     DeleteGarmentResponse,
+    CreateUserRequest,
 )
-from api.server import app, get_garment_service
-from db.schema import Garment
+from api.server import app, get_garment_service, get_user_service
 
 # API Server for Tests
 client = TestClient(app)
@@ -85,6 +85,24 @@ class FakeGarmentService:
                 out.append(CreateGarmentResponse(**rec).dict())
 
         return ListByOwnerResponse(garments=out)
+    
+    # Add a simple fake user service inline so we don't add a new file
+class FakeUserService:
+    def __init__(self):
+        self._next = 1
+
+    def create(self, req: CreateUserRequest):
+        uid = self._next
+        self._next += 1
+        return {
+            "id": uid,
+            "username": req.username,
+            "avatar_url": f"/avatars/user_{uid}",
+            "created_at": datetime.now(timezone.utc),
+        }
+
+    def get_by_id(self, id: int):
+        return None
 
 def test_create_garment_unit():
     fake = FakeGarmentService()
@@ -179,4 +197,19 @@ def test_get_wardrobe_by_user():
     assert len(body["garments"]) == 1
     assert body["garments"][0]["owner"] == 1
     assert body["garments"][0]["name"] == "Unit Shirt"
+    app.dependency_overrides.clear()
+
+def test_create_user_unit():
+
+    fake = FakeUserService()
+    app.dependency_overrides[get_user_service] = lambda: fake
+
+    payload = {"username": "test_user", "hashed_password": "pw"}
+    resp = client.post("/users", json=payload)
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["id"] == 1
+    assert body["username"] == "test_user"
+    assert body["avatar_url"] == "/avatars/user_1"
+
     app.dependency_overrides.clear()

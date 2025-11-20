@@ -11,6 +11,8 @@ from api.schema import (
     GenerateOutfitResponse,
     ChatRequest,
     ChatResponse,
+    CreateUserRequest,
+    UserResponse,
 )
 from api.validate import (
     validate_create_garment_request,
@@ -22,6 +24,7 @@ from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
 from services.outfit_generator_service import OutfitGeneratorService
 from services.chat_service import ChatService
+from services.user_service import UserService, DbUserService
 
 from sqlalchemy.exc import OperationalError
 
@@ -65,6 +68,10 @@ def get_chat_service() -> ChatService:
 
 def get_outfit_generator_service() -> OutfitGeneratorService:
     return OutfitGeneratorService()
+
+
+def get_user_service() -> UserService:
+    return DbUserService(SessionFactory)
 
 
 @app.post("/garments", response_model=CreateGarmentResponse, status_code=201)
@@ -231,6 +238,23 @@ def delete_garment(id: int, svc: GarmentService = Depends(get_garment_service)):
     except ValueError:
         # not found
         raise HTTPException(status_code=404, detail="garment not found")
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+
+
+@app.post("/users", response_model=UserResponse, status_code=201)
+def create_user(payload: CreateUserRequest, svc: UserService = Depends(get_user_service)):
+    """
+    Create a user.
+
+    Request body:
+    - username (string).
+    - hashed_password (string).
+    """
+    try:
+        out = svc.create(payload)
+        return out
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

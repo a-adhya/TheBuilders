@@ -35,9 +35,6 @@ class _UserStore(UserStore):
             self._session.rollback()
             raise UserStoreError("database error") from e
 
-    def get_by_username(self, username: str) -> Optional[User]:
-        return self._session.query(User).filter(User.username == username).one_or_none()
-
     def get_by_id(self, id: int) -> Optional[User]:
         return self._session.get(User, id)
 
