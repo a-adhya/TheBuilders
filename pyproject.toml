@@ -17,7 +17,11 @@ dependencies = [
     "fastapi (>=0.120.1,<0.121.0)",
     "pydantic (>=2.12.3,<3.0.0)",
     "cryptography (>=46.0.3,<47.0.0)",
-    "anthropic (>=0.72.0,<0.73.0)"
+    "anthropic (>=0.72.0,<0.73.0)",
+    "google-genai (>=1.51.0,<2.0.0)",
+    "pillow (>=12.0.0,<13.0.0)",
+    "minio (>=7.2.18,<8.0.0)",
+    "python-multipart (>=0.0.20,<0.0.21)",
 ]
 packages = [{ include = "*", from = "src" }]
 

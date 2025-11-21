@@ -76,3 +76,8 @@ class ChatResponse(BaseModel):
 
 class DeleteGarmentResponse(GarmentResponse):
     pass
+
+
+class AvatarUploadResponse(BaseModel):
+    avatar_url: str
+

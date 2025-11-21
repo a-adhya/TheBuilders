@@ -41,7 +41,9 @@ services:
       sleep 5;
       mc alias set local http://minio:9000 minioadmin minioadmin123;
       mc mb local/images;
+      mc mb local/avatars;
       mc anonymous set public local/images;
+      mc anonymous set public local/avatars;
       exit 0;
       "
       
