@@ -6,6 +6,10 @@ from google import genai
 from PIL import Image
 
 
+class AvatarGenerationError(RuntimeError):
+    """Raised when avatar generation (Gemini) fails or returned data is invalid."""
+
+
 class AvatarService:
     def __init__(self, session_factory, *, minio: Minio):
         self._session_factory = session_factory
@@ -17,16 +21,14 @@ class AvatarService:
         """Call Google GenAI (Gemini image) to generate an avatar-like image.
 
         Uses the exact API form provided by the user: `genai.Client().models.generate_content`.
-        Falls back to returning original bytes if `genai` or `PIL` is not available.
+        On any failure this raises `AvatarGenerationError` — the caller should handle it.
         """
-        if not (genai and Image):
-            return image_bytes
 
         try:
             inp = BytesIO(image_bytes)
             image = Image.open(inp)
-        except Exception:
-            return image_bytes
+        except Exception as e:
+            raise AvatarGenerationError("failed to open input image") from e
 
         # The client gets the API key from the environment variable `GEMINI_API_KEY`.
         client = genai.Client()
@@ -80,16 +82,14 @@ class AvatarService:
                 contents=[prompt, image]
             )
         except Exception as e:
-            print(e)
-            return image_bytes
+            raise AvatarGenerationError("gemini generation failed") from e
 
         for part in response.parts:
             if part.inline_data:
                 return part.inline_data.data
 
-
-        # if no inline image returned, fallback to original bytes
-        return image_bytes
+        # No inline image returned — treat this as a generation failure
+        raise AvatarGenerationError("no image returned by Gemini")
 
     def generate_and_upload(self, user_id: int, image_bytes: bytes) -> str:
         """Generate an avatar-like image from input bytes and upload to MinIO.

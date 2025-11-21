@@ -4,7 +4,8 @@ from PIL import Image
 import pytest
 
 import src.services.avatar_service as avatar_module
-from services.avatar_service import AvatarService
+AvatarService = avatar_module.AvatarService
+AvatarGenerationError = avatar_module.AvatarGenerationError
 
 
 class FakeMinio:
@@ -54,7 +55,7 @@ class Part:
 # Client for bad tests      
 class BadModels:
     def generate_content(self, model, contents):
-        raise RuntimeError("generation failed")
+        raise AvatarGenerationError("generation failed")
 
 class BadClient:
     def __init__(self):
@@ -100,12 +101,9 @@ def test_generate_and_upload_fail(monkeypatch, small_png_bytes):
 
     fake_minio = FakeMinio()
     svc = AvatarService(session_factory=None, minio=fake_minio)
-    avatar_path = svc.generate_and_upload(7, small_png_bytes)
 
-    # Assert - since genai errored, original bytes should be uploaded
-    assert avatar_path == "/avatars/user_7"
-    assert len(fake_minio.calls) == 1
-    call = fake_minio.calls[0]
-    assert call["key"] == "user_7"
-    assert call["bucket"] == "avatars"
-    assert call["content_type"] == "image/png"
+    # Expect a typed error when generation fails; no upload should be attempted
+    with pytest.raises(AvatarGenerationError):
+        svc.generate_and_upload(7, small_png_bytes)
+
+    assert len(fake_minio.calls) == 0
