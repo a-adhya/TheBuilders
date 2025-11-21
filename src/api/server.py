@@ -169,10 +169,7 @@ def generate_outfit(
     """
 
     try:
-        garments = ListByOwnerResponse(garments=[])
-        if payload.previous_messages is None:
-            garments = svc.list_by_owner(user_id)
-
+        garments = svc.list_by_owner(user_id)
         context = (
             payload.optional_string
             if payload.optional_string
