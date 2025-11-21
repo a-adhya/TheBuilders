@@ -177,7 +177,6 @@ class OutfitGeneratorService:
                     ]
                 )
             elif tool.name == "get_weather":
-                lat, lon = None, None
                 lat = tool.input.get("lat")
                 lon = tool.input.get("lon")
                 # Execute backend weather API call
