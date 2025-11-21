@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union
 
 from models.enums import Category, Material
 
@@ -54,7 +54,15 @@ class GenerateOutfitResponse(BaseModel):
 
 class ConversationMessage(BaseModel):
     role: str
-    content: str
+    # Content is a string containing the message.
+    # For a message that includes an image, content is a list of objects
+    # with an image and a text block.
+    # Example:
+    # [
+    #   {"type": "image", "source": {"type": "url", "url": "https://..."}},
+    #   {"type": "text", "text": "Describe this image."}
+    # ]
+    content: Union[List[Dict[str, Any]], str]
 
 
 class ChatRequest(BaseModel):
