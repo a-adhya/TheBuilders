@@ -155,7 +155,8 @@ def generate_outfit(
     user_id: int,
     payload: GenerateOutfitRequest,
     svc: GarmentService = Depends(get_garment_service),
-    outfit_generator: OutfitGeneratorService = Depends(get_outfit_generator_service),
+    outfit_generator: OutfitGeneratorService = Depends(
+        get_outfit_generator_service),
 ):
     """
     Generate an outfit for the given user.
@@ -168,9 +169,9 @@ def generate_outfit(
     """
 
     try:
-        garments = svc.list_by_owner(user_id)
-        if not garments.garments:
-            garments = ListByOwnerResponse(garments=[])
+        garments = ListByOwnerResponse(garments=[])
+        if payload.previous_messages is None:
+            garments = svc.list_by_owner(user_id)
 
         context = (
             payload.optional_string
@@ -178,7 +179,7 @@ def generate_outfit(
             else "No additional context provided."
         )
 
-        return outfit_generator.generate_outfit(garments, context)
+        return outfit_generator.generate_outfit(garments, context, payload.previous_messages)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

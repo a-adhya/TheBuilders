@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from models.enums import Category, Material
 
@@ -46,10 +46,21 @@ class UpdateGarmentRequest(BaseModel):
 
 class GenerateOutfitRequest(BaseModel):
     optional_string: Optional[str] = None
+    # optional conversation state previously returned by the service
+    previous_messages: Optional[List[Dict[str, Any]]] = None
 
 
 class GenerateOutfitResponse(BaseModel):
-    garments: list[GarmentResponse]
+    # Indicates what this response contains. Examples: "tool_request" or "garments".
+    response_type: str
+
+    # When the agent finished, the selected garments will be provided here.
+    garments: Optional[List[GarmentResponse]] = None
+
+    # When the service needs the frontend to perform an action (e.g. collect location),
+    # it will return the conversation state here so the frontend can update it and
+    # POST it back with the next request.
+    previous_messages: Optional[List[Dict[str, Any]]] = None
 
 
 class ConversationMessage(BaseModel):
