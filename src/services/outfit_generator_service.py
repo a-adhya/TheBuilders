@@ -51,6 +51,7 @@ class OutfitGeneratorService:
                 "description": "Prints garments for an optimal and fashionable outfit given a list of garments and context.",
                 "input_schema": {
                     "type": "object",
+                    "additionalProperties": False,
                     "properties": {
                         "garments": {
                             "type": "array",
@@ -77,6 +78,7 @@ class OutfitGeneratorService:
                 "description": "Get the current weather in a given location",
                 "input_schema": {
                     "type": "object",
+                    "additionalProperties": False,
                     "properties": {
                         "lat": {"type": "number", "description": "Latitude of given location"},
                         "lon": {"type": "number", "description": "Longitude of given location"},
@@ -157,6 +159,7 @@ class OutfitGeneratorService:
             for content in response.content:
                 if content.type == "tool_use":
                     tool = content
+                    break
 
             # Execute tool
             if tool.name == "get_location":
