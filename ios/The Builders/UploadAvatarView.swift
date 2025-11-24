@@ -7,8 +7,14 @@ struct UploadAvatarView: View {
     @State private var selectedImage: UIImage?
     @State private var showImagePicker = false
     @State private var showCamera = false
+    @State private var isUploading = false
+    @State private var uploadError: String?
     @Binding var avatarImage: UIImage?
     @Binding var userName: String
+    
+    // Initialize API based on configuration
+    private let avatarAPI: AvatarAPIProtocol = USE_MOCK_AVATAR_API ? MockAvatarAPI() : RealAvatarAPI()
+    private let userId: Int = 1 // Default user ID
     
     init(avatarImage: Binding<UIImage?>, userName: Binding<String>) {
         self._avatarImage = avatarImage
@@ -157,19 +163,27 @@ struct UploadAvatarView: View {
             .buttonStyle(PlainButtonStyle())
 
             Button(action: {
-                avatarImage = selectedImage
-                dismiss()
+                // Prevent multiple taps while uploading
+                guard !isUploading else { return }
+                Task {
+                    await uploadAvatar()
+                }
             }) {
                 VStack(spacing: 8) {
+                    if isUploading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                    } else {
                     Image(systemName: "checkmark")
                         .font(.system(size: 24))
-                    Text("Done")
+                    }
+                    Text(isUploading ? "Uploading..." : "Done")
                         .font(.system(size: 16, weight: .medium))
                 }
                 .frame(maxWidth: .infinity)
             }
-            .disabled(selectedImage == nil)
-            .foregroundColor(selectedImage == nil ? .purple.opacity(0.4) : .purple)
+            .disabled(selectedImage == nil || isUploading)
+            .foregroundColor(selectedImage == nil || isUploading ? .purple.opacity(0.4) : .purple)
             .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
@@ -179,6 +193,47 @@ struct UploadAvatarView: View {
                 .fill(Color.white)
                 .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: -1)
         )
+        .alert("Upload Error", isPresented: .constant(uploadError != nil)) {
+            Button("OK") {
+                uploadError = nil
+            }
+        } message: {
+            if let error = uploadError {
+                Text(error)
+            }
+        }
+    }
+    
+    // MARK: - API Methods
+
+    // Need to double check with the main actor usage here
+    
+    /// Uploads the selected avatar image using the configured AvatarAPI.
+    ///
+    /// This method:
+    /// 1. Validates that an image has been selected
+    /// 2. Sets uploading state to show progress indicator
+    /// 3. Calls avatarAPI.uploadAvatar()
+    /// 4. Updates the avatarImage binding with the processed result
+    /// 5. Dismisses the view on success, or shows error alert on failure
+    ///
+    /// The API call is asynchronous and may take several minutes for real avatar generation.
+    @MainActor
+    private func uploadAvatar() async {
+        guard let image = selectedImage else { return }
+        
+        isUploading = true
+        uploadError = nil
+        
+        do {
+            let processedAvatar = try await avatarAPI.uploadAvatar(userId: userId, image: image)
+            avatarImage = processedAvatar
+            isUploading = false
+            dismiss()
+        } catch {
+            isUploading = false
+            uploadError = "Failed to upload avatar: \(error.localizedDescription)"
+        }
     }
 }
 
