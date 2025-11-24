@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mysql:
@@ -16,6 +16,39 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      # port to expose MinIO console for manual testing
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  # init container to create default images bucket with open policy
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio:9000 minioadmin minioadmin123;
+      mc mb local/images;
+      mc mb local/avatars;
+      mc anonymous set public local/images;
+      mc anonymous set public local/avatars;
+      exit 0;
+      "
+      
 volumes:
   mysql-data:
     name: thebuilders-mysql-data
+  minio-data:
+    name: thebuilders-minio-data

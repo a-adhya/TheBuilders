@@ -11,6 +11,7 @@ from api.schema import (
     GenerateOutfitResponse,
     ChatRequest,
     ChatResponse,
+    AvatarUploadResponse
 )
 from api.validate import (
     validate_create_garment_request,
@@ -22,6 +23,9 @@ from fastapi import Depends
 from services.garment_service import GarmentService, DbGarmentService
 from services.outfit_generator_service import OutfitGeneratorService
 from services.chat_service import ChatService
+from services.avatar_service import AvatarService
+from fastapi import UploadFile, File
+from minio import Minio
 
 from sqlalchemy.exc import OperationalError
 
@@ -30,11 +34,12 @@ DATABASE_URL = "mysql+pymysql://apiuser:apipass@127.0.0.1:3306/testdb"
 
 engine = None
 SessionFactory = None
+minio_client = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global engine, SessionFactory
+    global engine, SessionFactory, minio_client
     try:
         engine = make_engine(DATABASE_URL, echo=False)
         SessionFactory = make_session_factory(engine)
@@ -49,6 +54,15 @@ async def lifespan(app: FastAPI):
 
     # ensure schema is present (idempotent)
     create_tables(engine)
+    
+    try:
+        minio_client = Minio("127.0.0.1:9000", access_key="minioadmin", secret_key="minioadmin123", secure=False)
+    except Exception:
+        raise RuntimeError(
+            "Unable to connect to MinIO at 127.0.0.1:9000. "
+            "Please ensure that the MinIO server is running, the URL is correct, and the access credentials are valid.\n"
+        ) from e
+            
     yield
 
 
@@ -67,6 +81,10 @@ def get_outfit_generator_service() -> OutfitGeneratorService:
     return OutfitGeneratorService()
 
 
+def get_avatar_service() -> AvatarService:
+    return AvatarService(SessionFactory, minio=minio_client)
+
+
 @app.post("/garments", response_model=CreateGarmentResponse, status_code=201)
 def create_garment(
     payload: CreateGarmentRequest, svc: GarmentService = Depends(get_garment_service)
@@ -80,23 +98,13 @@ def create_garment(
     - color (str): hex color (e.g. "#000000").
     - name (str): garment name.
     - material (int): material id.
-    - image_url (str): image path/URL.
     - dirty (bool): is the garment dirty.
     """
 
     validate_create_garment_request(payload)
-    garment = Garment(
-        owner=payload.owner,
-        category=payload.category,
-        color=payload.color,
-        name=payload.name,
-        material=payload.material,
-        image_url=payload.image_url,
-        dirty=payload.dirty,
-    )
 
     try:
-        out = svc.create(garment)
+        out = svc.create(payload)
         return out
     except Exception as e:
         print(e)
@@ -165,7 +173,8 @@ def generate_outfit(
     user_id: int,
     payload: GenerateOutfitRequest,
     svc: GarmentService = Depends(get_garment_service),
-    outfit_generator: OutfitGeneratorService = Depends(get_outfit_generator_service),
+    outfit_generator: OutfitGeneratorService = Depends(
+        get_outfit_generator_service),
 ):
     """
     Generate an outfit for the given user.
@@ -203,7 +212,7 @@ def chat(
     Chat endpoint.
 
     Request body:
-    - messages (list): conversation messages [{'role': str, 'content': str}].
+    - messages (list): conversation messages [{'role': str, 'content': list[dict] | str}].
 
     Response:
     - ChatResponse: generated response text.
@@ -241,6 +250,27 @@ def delete_garment(id: int, svc: GarmentService = Depends(get_garment_service)):
     except ValueError:
         # not found
         raise HTTPException(status_code=404, detail="garment not found")
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+
+
+@app.post("/users/{user_id}/avatar", response_model=AvatarUploadResponse)
+async def upload_avatar(
+    user_id: int,
+    image: UploadFile = File(...),
+    svc: AvatarService = Depends(get_avatar_service),
+):
+    """
+    Accept raw image bytes, generate an avatar-like image via Gemini, upload
+    to MinIO under a deterministic key, and update the user's `avatar_url`.
+    Returns a JSON object with the CDN link: `{ "avatar_url": "/avatars/{id}.png" }`.
+    """
+    try:
+        content = await image.read()
+        avatar_path = svc.generate_and_upload(user_id, content)
+        
+        return AvatarUploadResponse(avatar_url=avatar_path)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")
