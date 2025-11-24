@@ -13,7 +13,7 @@ struct HomeView: View {
     @State private var avatarImage: UIImage?
     @State private var showUploadAvatar = false
     @State private var userName: String = "Sugih Jamin"
-    
+       
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
@@ -61,7 +61,7 @@ struct HomeView: View {
                         Image(uiImage: avatarImage)
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 200, height: 280)
+                            .frame(width: 300, height: 450)
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
