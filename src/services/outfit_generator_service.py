@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+from anthropic import Anthropic
 import os
 from api.schema import GenerateOutfitResponse, ListByOwnerResponse
 from typing import Optional, List, Dict, Any
@@ -20,13 +22,7 @@ class OutfitGeneratorService:
         # in a try/except so tests (which don't have the package) don't
         # fail during import.
         try:
-            # Import dotenv and Anthropic only when attempting to create the
-            # real client. This prevents import-time failures in test
-            # environments where those packages aren't installed.
-            from dotenv import load_dotenv
             load_dotenv()
-            from anthropic import Anthropic
-
             api_key = os.getenv("API_KEY")
             self.client = Anthropic(api_key=api_key)
         except Exception:
