@@ -141,7 +141,7 @@ final class RealGarmentAPI: GarmentAPI {
         // Convert owner string to int (default to 1 if "local" or nil)
         let userId = convertOwnerToUserId(owner)
         
-        var urlString = "\(baseURL)/api/item/get?user_id=\(userId)"
+        let urlString = "\(baseURL)/garments/\(userId)"
         guard let url = URL(string: urlString) else {
             throw URLError(.badURL)
         }
@@ -167,7 +167,7 @@ final class RealGarmentAPI: GarmentAPI {
     }
     
     func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO {
-        guard let url = URL(string: "\(baseURL)/create_garment") else {
+        guard let url = URL(string: "\(baseURL)/garments") else {
             throw URLError(.badURL)
         }
         
@@ -290,8 +290,33 @@ final class RealGarmentAPI: GarmentAPI {
     }
     
     func deleteGarment(id: Int) async throws {
-        // Backend team is working on this, so throw an error for now
-        throw NSError(domain: "RealGarmentAPI", code: 501, userInfo: [NSLocalizedDescriptionKey: "Delete endpoint not yet implemented by backend"])
+        guard let url = URL(string: "\(baseURL)/garments/\(id)") else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 404 {
+                throw NSError(domain: "RealGarmentAPI", code: 404, userInfo: [NSLocalizedDescriptionKey: "Garment not found"])
+            }
+            if httpResponse.statusCode == 500 {
+                throw NSError(domain: "RealGarmentAPI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Internal server error"])
+            }
+            throw URLError(.badServerResponse)
+        }
+        
+        // The delete endpoint returns the deleted garment (DeleteGarmentResponse which is a GarmentResponse)
+        // We decode it to verify success but don't need to return it since it's deleted
+        _ = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
+        // Delete successful, no return value needed per protocol
     }
     
     // MARK: - Helper Functions
@@ -343,7 +368,6 @@ struct APICreateGarmentRequest: Codable {
     let material: Int
     let color: String
     let name: String
-    let image_url: String
     let dirty: Bool
 }
 
@@ -463,7 +487,6 @@ extension GarmentDTO {
         let category = convertUICategoryToAPICategory(self.category)
         let material = convertMaterialStringToAPIMaterial(self.material)
         let colorHex = convertColorToHex(self.color)
-        let imageUrl = self.imageURL?.absoluteString ?? ""
         
         return APICreateGarmentRequest(
             owner: userId,
@@ -471,7 +494,6 @@ extension GarmentDTO {
             material: material,
             color: colorHex,
             name: self.name,
-            image_url: imageUrl,
             dirty: self.dirty
         )
     }
