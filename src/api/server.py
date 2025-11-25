@@ -188,16 +188,13 @@ def generate_outfit(
 
     try:
         garments = svc.list_by_owner(user_id)
-        if not garments.garments:
-            garments = ListByOwnerResponse(garments=[])
-
         context = (
             payload.optional_string
             if payload.optional_string
             else "No additional context provided."
         )
 
-        return outfit_generator.generate_outfit(garments, context)
+        return outfit_generator.generate_outfit(garments, context, payload.previous_messages)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

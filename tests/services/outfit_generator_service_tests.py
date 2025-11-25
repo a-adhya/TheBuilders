@@ -1,78 +1,157 @@
-# TO RUN: PYTHONPATH=src poetry run python -m pytest tests/services/outfit_generator_service_tests.py -q
-from services.outfit_generator_service import OutfitGeneratorService
-from api.schema import GenerateOutfitRequest, GarmentResponse, ListByOwnerResponse
-from models.enums import Category, Material
+from types import SimpleNamespace
 import pytest
+
+from services.outfit_generator_service import OutfitGeneratorService
+from api.schema import GenerateOutfitResponse, GarmentResponse
+from models.enums import Category, Material
 from datetime import datetime
 
 
-@pytest.fixture
-def sample_garments():
-    # First create GarmentResponse objects
-    garment_responses = [
+class FakeContent:
+    def __init__(self, type_, name=None, input_=None):
+        self.type = type_
+        self.name = name
+        self.input = input_
+
+    def model_dump(self):
+        return {"type": self.type, "name": self.name, "input": self.input}
+
+    def __repr__(self):
+        return f"<FakeContent type={self.type} name={self.name} input={self.input}>"
+
+
+class FakeResponse:
+    def __init__(self, contents, id_="resp-id", stop_reason=None):
+        # contents: list of FakeContent
+        self.content = contents
+        self.id = id_
+        self.stop_reason = stop_reason
+
+
+class SequenceFakeClient:
+    class MessagesAPI:
+        def __init__(self, parent):
+            self.parent = parent
+
+        def create(self, model, max_tokens, tools, tool_choice, disable_parallel_tool_use, messages):
+            if not self.parent._responses:
+                raise RuntimeError("No more fake responses configured")
+            return self.parent._responses.pop(0)
+
+    def __init__(self, responses):
+        self._responses = list(responses)
+
+    @property
+    def messages(self):
+        return SequenceFakeClient.MessagesAPI(self)
+
+
+def make_closet(garment_ids):
+    # Create real GarmentResponse objects so Pydantic validation succeeds
+    garments = [
         GarmentResponse(
-            id=1,
+            id=i,
             owner=1,
             category=Category.SHIRT,
-            color="#112233",
-            name="Blue T-Shirt",
-            material=Material.COTTON,
-            image_url="/img/shirt.jpg",
-            dirty=False,
-            created_at=datetime(2025, 11, 1, 12, 0, 0)
-        ),
-        GarmentResponse(
-            id=2,
-            owner=1,
-            category=Category.PANTS,
             color="#000000",
-            name="Black Jeans",
-            material=Material.DENIM,
-            image_url="/img/pants.jpg",
+            name=f"garment-{i}",
+            material=Material.COTTON,
+            image_url="",
             dirty=False,
-            created_at=datetime(2025, 11, 1, 12, 0, 0)
+            created_at=datetime(2003, 9, 24, 0, 0, 0),
         )
+        for i in garment_ids
     ]
-    # Wrap them in a ListByOwnerResponse
-    return ListByOwnerResponse(garments=garment_responses)
+    return SimpleNamespace(garments=garments)
 
 
-def test_generate_outfit_basic(sample_garments):
-    """Test basic outfit generation with a simple context"""
+def test_previous_messages_provided_returns_garments():
     svc = OutfitGeneratorService()
-    req = GenerateOutfitRequest(optional_string="casual outfit")
 
-    result = svc.generate_outfit(sample_garments, req.optional_string)
+    # Anthropic responds immediately with final print_outfit_garments tool use
+    print_block = FakeContent(
+        type_="tool_use", name="print_outfit_garments", input_={"garments": [1, 3]})
+    resp = FakeResponse(contents=[print_block], id_="r-final")
+    svc.client = SequenceFakeClient([resp])
 
-    # We expect some garments to be returned
-    assert len(result.garments) > 0
-    # Verify returned garments are from our sample set
-    for garment in result.garments:
-        assert garment.id in [1, 2]
+    closet = make_closet([1, 2, 3, 4])
+    # provide previous_messages to simulate frontend resuming
+    prev_msgs = [{"role": "assistant", "content": "prev"}]
+
+    out = svc.generate_outfit(closet, context="ctx",
+                              previous_messages=prev_msgs)
+
+    assert isinstance(out, GenerateOutfitResponse)
+    assert out.response_type == "garments"
+    assert out.garments is not None
+    returned_ids = [g.id for g in out.garments]
+    assert set(returned_ids) == {1, 3}
 
 
-def test_generate_outfit_empty():
-    """Test outfit generation with no garments"""
+def test_no_previous_messages_model_requests_location_returns_tool_request():
     svc = OutfitGeneratorService()
-    req = GenerateOutfitRequest(optional_string="any outfit")
 
-    # Create an empty ListByOwnerResponse
-    empty_garments = ListByOwnerResponse(garments=[])
-    result = svc.generate_outfit(empty_garments, req.optional_string)
+    loc_block = FakeContent(type_="tool_use", name="get_location", input_={})
+    resp = FakeResponse(contents=[loc_block], id_="r-loc")
+    svc.client = SequenceFakeClient([resp])
 
-    # Should return empty list
-    assert len(result.garments) == 0
+    closet = make_closet([1, 2, 3])
+    out = svc.generate_outfit(closet, context="ctx", previous_messages=None)
+
+    assert isinstance(out, GenerateOutfitResponse)
+    assert out.response_type == "tool_request"
+    assert out.previous_messages is not None
+    # Expect last user entry to contain tool_results placeholder
+    user_entries = [
+        m for m in out.previous_messages if m.get("role") == "user"]
+    assert user_entries, "expected a user entry with tool_results"
+    tool_results = user_entries[-1]["content"]
+    assert isinstance(tool_results, list)
+    assert tool_results[0]["type"] == "tool_result"
+    assert tool_results[0]["content"] == "No location provided."
 
 
-def test_generate_outfit_with_context(sample_garments):
-    """Test outfit generation with specific context"""
+def test_no_previous_messages_model_returns_garments_immediately():
     svc = OutfitGeneratorService()
-    req = GenerateOutfitRequest(optional_string="formal business meeting")
 
-    result = svc.generate_outfit(sample_garments, req.optional_string)
+    print_block = FakeContent(
+        type_="tool_use", name="print_outfit_garments", input_={"garments": [2]})
+    resp = FakeResponse(contents=[print_block], id_="r-final2")
+    svc.client = SequenceFakeClient([resp])
 
-    # We expect some garments to be returned
-    assert len(result.garments) > 0
-    # Verify returned garments are from our sample set
-    for garment in result.garments:
-        assert garment.id in [1, 2]
+    closet = make_closet([1, 2, 3])
+    out = svc.generate_outfit(closet, context="ctx", previous_messages=None)
+
+    assert isinstance(out, GenerateOutfitResponse)
+    assert out.response_type == "garments"
+    returned_ids = [g.id for g in out.garments]
+    assert set(returned_ids) == {2}
+
+
+def test_weather_then_print_calls_weather_and_returns_garments(monkeypatch):
+    svc = OutfitGeneratorService()
+
+    weather_block = FakeContent(type_="tool_use", name="get_weather", input_={
+                                "lat": 10.0, "lon": 20.0})
+    print_block = FakeContent(
+        type_="tool_use", name="print_outfit_garments", input_={"garments": [1, 4]})
+    resp1 = FakeResponse(contents=[weather_block], id_="r1")
+    resp2 = FakeResponse(contents=[print_block], id_="r2")
+    svc.client = SequenceFakeClient([resp1, resp2])
+
+    called = {}
+
+    def fake_weather(lat, lon):
+        called['lat'] = lat
+        called['lon'] = lon
+        return {"summary": "sunny"}
+
+    monkeypatch.setattr(svc, "call_weather_api", fake_weather)
+
+    closet = make_closet([1, 2, 3, 4])
+    out = svc.generate_outfit(closet, context="ctx", previous_messages=None)
+
+    assert called.get('lat') == 10.0 and called.get('lon') == 20.0
+    assert out.response_type == "garments"
+    returned_ids = [g.id for g in out.garments]
+    assert set(returned_ids) == {1, 4}
