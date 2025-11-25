@@ -9,11 +9,13 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var tabSelection = TabSelectionManager()
+    @StateObject private var avatarManager = AvatarManager()
     
     var body: some View {
         TabView(selection: $tabSelection.selectedTab) {
             // Home tab
             HomeView()
+                .environmentObject(avatarManager)
                 .tabItem {
                     Image(systemName: tabSelection.selectedTab == 0 ? "house.fill" : "house")
                     Text("Home")
@@ -22,6 +24,7 @@ struct ContentView: View {
             
             // Outfit Generator tab
             OutfitGeneratorView()
+                .environmentObject(avatarManager)
                 .tabItem {
                     Image(systemName: tabSelection.selectedTab == 1 ? "tshirt.fill" : "tshirt")
                     Text("Outfit\nGenerator")
