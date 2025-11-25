@@ -10,7 +10,7 @@ import Combine
 
 struct HomeView: View {
     @StateObject private var viewModel = WeatherViewModel()
-    @State private var avatarImage: UIImage?
+    @EnvironmentObject var avatarManager: AvatarManager
     @State private var showUploadAvatar = false
     @State private var userName: String = "Sugih Jamin"
        
@@ -56,7 +56,7 @@ struct HomeView: View {
                 
                 // Avatar Section
                 VStack {
-                    if let avatarImage = avatarImage {
+                    if let avatarImage = avatarManager.avatarImage {
                         // Show uploaded avatar image
                         Image(uiImage: avatarImage)
                             .resizable()
@@ -263,7 +263,10 @@ struct HomeView: View {
         .background(Color(.systemGray6))
         .ignoresSafeArea(.all, edges: .top)
         .sheet(isPresented: $showUploadAvatar) {
-            UploadAvatarView(avatarImage: $avatarImage, userName: $userName)
+            UploadAvatarView(avatarImage: Binding(
+                get: { avatarManager.avatarImage },
+                set: { avatarManager.updateAvatar($0) }
+            ), userName: $userName)
                 .presentationDetents([.fraction(0.7)])
         }
         .task { await viewModel.load() }

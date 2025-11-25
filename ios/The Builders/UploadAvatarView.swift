@@ -13,7 +13,7 @@ struct UploadAvatarView: View {
     @Binding var userName: String
     
     // Initialize API based on configuration
-    private let avatarAPI: AvatarAPIProtocol = USE_MOCK_AVATAR_API ? MockAvatarAPI() : RealAvatarAPI()
+    private let avatarAPI: AvatarAPIProtocol = USE_MOCK_AVATAR_UPLOAD ? MockAvatarAPI() : RealAvatarAPI()
     private let userId: Int = 1 // Default user ID
     
     init(avatarImage: Binding<UIImage?>, userName: Binding<String>) {
