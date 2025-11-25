@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from contextlib import asynccontextmanager
 
 from api.schema import (
@@ -12,6 +12,7 @@ from api.schema import (
     ChatRequest,
     ChatResponse,
     AvatarUploadResponse
+    , TryOnImageRequest
 )
 from api.validate import (
     validate_create_garment_request,
@@ -212,7 +213,7 @@ def chat(
     Chat endpoint.
 
     Request body:
-    - messages (list): conversation messages [{'role': str, 'content': list[dict] | str}].
+    - messages (list): conversation messages [{'role': str, 'content': str}].
 
     Response:
     - ChatResponse: generated response text.
@@ -272,5 +273,25 @@ async def upload_avatar(
         
         return AvatarUploadResponse(avatar_url=avatar_path)
     except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="internal error")
+
+
+@app.post("/users/{user_id}/tryon")
+def tryon_preview(
+    user_id: int,
+    payload: TryOnImageRequest,
+    svc: AvatarService = Depends(get_avatar_service),
+):
+    """Separate try-on preview endpoint that does NOT reuse existing try-on schemas.
+
+    Request body example: `{ "garments": [1, 2, 3] }`
+    Returns raw `image/png` bytes.
+    """
+    try:
+        img_bytes = svc.try_on(user_id, payload.garments)
+        return Response(content=img_bytes, media_type="image/png")
+    except Exception as e:
+        # Unexpected/server error
         print(e)
         raise HTTPException(status_code=500, detail="internal error")

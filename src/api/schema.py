@@ -81,3 +81,21 @@ class DeleteGarmentResponse(GarmentResponse):
 class AvatarUploadResponse(BaseModel):
     avatar_url: str
 
+
+class TryOnImageRequest(BaseModel):
+    """Separate request schema for the try-on preview endpoint.
+
+    This intentionally does not reuse other try-on request types to keep a
+    distinct API contract per your instruction.
+    """
+    garments: List[int]
+
+
+class TryOnImageResponse(BaseModel):
+    """Optional metadata for the try-on preview endpoint responses.
+
+    Note: the endpoint will return raw `image/png` bytes in the response body;
+    this model exists separately in case a JSON wrapper is desired elsewhere.
+    """
+    info: Optional[str] = None
+
