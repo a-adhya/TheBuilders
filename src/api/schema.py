@@ -94,3 +94,12 @@ class DeleteGarmentResponse(GarmentResponse):
 class AvatarUploadResponse(BaseModel):
     avatar_url: str
 
+
+class ClassifyImageResponse(BaseModel):
+    category: Optional[Category] = None
+    category_confidence: float
+    color: str
+    color_confidence: float 
+    success: bool
+    error: Optional[str] = None
+
