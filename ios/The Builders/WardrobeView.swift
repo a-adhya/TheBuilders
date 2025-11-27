@@ -31,10 +31,71 @@ struct WardrobeView: View {
                 // View Laundry toggle
                 laundryToggleSection
                 
-                // Content area
-                clothingItemsGrid
+                // Scrollable content area with items
+                ScrollView {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 16) {
+                        ForEach(displayedItems) { item in
+                            ZStack {
+                                ClothingItemCard(
+                                    item: item,
+                                    showLaundry: showLaundry,
+                                    wardrobeManager: wardrobeManager
+                                )
+
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        if showLaundry {
+                                            // Restore from laundry button (top-right)
+                                            Button(action: {
+                                                Task {
+                                                    await wardrobeManager.returnFromLaundry(itemId: item.id)
+                                                    await refreshItems()
+                                                }
+                                            }) {
+                                                Image(systemName: "arrow.uturn.left")
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundColor(.purple)
+                                                    .padding(8)
+                                                    .background(
+                                                        Circle().fill(Color.white)
+                                                            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                                    )
+                                            }
+                                        } else {
+                                            // Send to laundry button (top-right)
+                                            Button(action: {
+                                                Task {
+                                                    await wardrobeManager.sendToLaundry(itemId: item.id)
+                                                    await refreshItems()
+                                                }
+                                            }) {
+                                                Image(systemName: "basket.fill")
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundColor(.gray)
+                                                    .padding(8)
+                                                    .background(
+                                                        Circle().fill(Color.white)
+                                                            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                                    )
+                                            }
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .padding(8)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 20) // Space before buttons
+                }
                 
-                // Add Item buttons
+                // Add Item buttons (above tab bar)
                 addItemButtons
             }
             .background(Color(.systemGray6))
@@ -42,7 +103,9 @@ struct WardrobeView: View {
             .task { await refreshItems() }
         }
         .sheet(isPresented: $showingAddItem) {
-            AddClothingItemView()
+            AddClothingItemView(wardrobeManager: wardrobeManager) {
+                Task { await refreshItems() }
+            }
         }
         .sheet(isPresented: $showingAddItemWithText) {
             AddItemWithTextView(wardrobeManager: wardrobeManager)
@@ -78,69 +141,6 @@ struct WardrobeView: View {
         .padding(.top, 12)
     }
     
-    private var clothingItemsGrid: some View {
-        ScrollView {
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                ForEach(displayedItems) { item in
-                    ZStack {
-                        ClothingItemCard(
-                            item: item,
-                            showLaundry: showLaundry,
-                            wardrobeManager: wardrobeManager
-                        )
-
-                        VStack {
-                            HStack {
-                                Spacer()
-                                if showLaundry {
-                                    // Restore from laundry button (top-right)
-                                    Button(action: {
-                                        Task {
-                                            await wardrobeManager.returnFromLaundry(itemId: item.id)
-                                            await refreshItems()
-                                        }
-                                    }) {
-                                        Image(systemName: "arrow.uturn.left")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(.purple)
-                                            .padding(8)
-                                            .background(
-                                                Circle().fill(Color.white)
-                                                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
-                                            )
-                                    }
-                                } else {
-                                    // Send to laundry button (top-right)
-                                    Button(action: {
-                                        Task {
-                                            await wardrobeManager.sendToLaundry(itemId: item.id)
-                                            await refreshItems()
-                                        }
-                                    }) {
-                                        Image(systemName: "basket.fill")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(.gray)
-                                            .padding(8)
-                                            .background(
-                                                Circle().fill(Color.white)
-                                                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
-                                            )
-                                    }
-                                }
-                            }
-                            Spacer()
-                        }
-                        .padding(8)
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-        }
-    }
 
     // MARK: - Data Loading
     private func refreshItems() async {
@@ -182,7 +182,8 @@ struct WardrobeView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 100) // Extra space for tab bar
+        .padding(.vertical, 16)
+        .background(Color(.systemGray6))
     }
 }
 #Preview {

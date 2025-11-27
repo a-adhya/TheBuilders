@@ -6,12 +6,18 @@
 //
 
 import SwiftUI
+import UIKit
 
 // Clothing Item Detail View
 struct ClothingItemDetailView: View {
     @State private var item: ClothingItem
     @State private var selectedCategory: String
     @State private var itemDescription: String
+    @State private var imagePreview: Image?
+    @State private var uploadImageData: Data?
+    @State private var showImageSourcePicker = false
+    @State private var showCamera = false
+    @State private var showPhotoLibrary = false
     @Environment(\.dismiss) private var dismiss
     
     let wardrobeManager: WardrobeManager
@@ -69,39 +75,87 @@ struct ClothingItemDetailView: View {
     
     private var clothingImageSection: some View {
         VStack {
-            ZStack {
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.white)
-                    .frame(width: 300, height: 300)
-                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                
-                // Large clothing representation
-                clothingIcon
-                
-                // Edit icon in top right
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            // TODO: Add photo editing functionality
-                        }) {
+            Button(action: {
+                showImageSourcePicker = true
+            }) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color.white)
+                        .frame(width: 300, height: 300)
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                    
+                    // Large clothing representation
+                    clothingIcon
+                    
+                    // Edit icon in top right
+                    VStack {
+                        HStack {
+                            Spacer()
                             Image(systemName: "pencil")
                                 .font(.system(size: 20))
                                 .foregroundColor(.gray)
                                 .padding(12)
+                                .background(
+                                    Circle()
+                                        .fill(Color.white.opacity(0.8))
+                                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                )
                         }
+                        Spacer()
                     }
-                    Spacer()
                 }
             }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
+        .confirmationDialog("Select Image Source", isPresented: $showImageSourcePicker, titleVisibility: .visible) {
+            Button("Camera") {
+                showCamera = true
+            }
+            Button("Photo Library") {
+                showPhotoLibrary = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showCamera) {
+            ImagePicker(sourceType: .camera, selectedImage: $imagePreview, imageData: $uploadImageData)
+        }
+        .sheet(isPresented: $showPhotoLibrary) {
+            ImagePicker(sourceType: .photoLibrary, selectedImage: $imagePreview, imageData: $uploadImageData)
+        }
     }
     
     @ViewBuilder
     private var clothingIcon: some View {
-        if item.name.contains("T-Shirt") {
+        if let preview = imagePreview {
+            preview
+                .resizable()
+                .scaledToFill()
+                .frame(width: 260, height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: 25))
+        } else if let imageURL = item.imageURL {
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                        .frame(width: 200, height: 200)
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 260, height: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                case .failure:
+                    Image(systemName: "photo")
+                        .font(.system(size: 100))
+                        .foregroundColor(.gray)
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        } else if item.name.contains("T-Shirt") {
             Image(systemName: "tshirt.fill")
                 .font(.system(size: 150))
                 .foregroundColor(item.color)
@@ -253,7 +307,7 @@ struct ClothingItemDetailView: View {
         updatedItem.category = selectedCategory
         updatedItem.description = itemDescription
 
-        await wardrobeManager.updateItem(updatedItem)
+        await wardrobeManager.updateItem(updatedItem, imageData: uploadImageData)
         dismiss()
     }
     

@@ -14,13 +14,19 @@ docker-compose up -d
 ### 2. Run the API server
 Start the FastAPI app locally:
 
+**For local development (simulator):**
 ```bash
-PYTHONPATH=src poetry run uvicorn api.server:app --reload --host 127.0.0.1 --port 8000
+poetry run uvicorn api.server:app --reload --host 127.0.0.1 --port 8000
+```
+
+**For iPhone testing (physical device):**
+```bash
+poetry run uvicorn api.server:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Once started, the API server will be accessible at:
-
-**http://127.0.0.1:8000/**
+- **Local:** http://127.0.0.1:8000/
+- **Network:** http://YOUR_IP_ADDRESS:8000/ (replace with your computer's IP)
 
 ---
 
