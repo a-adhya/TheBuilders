@@ -11,6 +11,7 @@ class Category(IntEnum):
     SHORTS = 7
     SHOES = 8
     ACCESSORY = 9
+    DRESS = 10
 
 
 class Material(IntEnum):
