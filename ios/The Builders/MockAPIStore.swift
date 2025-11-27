@@ -132,7 +132,7 @@ final class RealGarmentAPI: GarmentAPI {
     private let baseURL: String
     private let cdnBaseURL: String
     
-    init(baseURL: String = "http://192.168.86.28:8000", cdnBaseURL: String = "http://192.168.86.28:9000") {
+    init(baseURL: String = "http://127.0.0.1:8000", cdnBaseURL: String = "http://127.0.0.1:9000") {
         self.baseURL = baseURL
         self.cdnBaseURL = cdnBaseURL
     }

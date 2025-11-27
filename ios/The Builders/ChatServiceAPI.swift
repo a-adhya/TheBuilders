@@ -40,7 +40,7 @@ final class ChatService: ChatServiceProtocol {
     private let baseURL: String
     private let session: URLSession
     
-    init(baseURL: String = "http://192.168.86.28:8000", session: URLSession = .shared) {
+    init(baseURL: String = "http://localhost:8000", session: URLSession = .shared) {
         self.baseURL = baseURL
         self.session = session
     }

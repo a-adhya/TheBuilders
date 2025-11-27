@@ -87,7 +87,7 @@ protocol OutfitAPI {
 final class RealOutfitAPI: OutfitAPI {
     private let baseURL: String
     
-    init(baseURL: String = "http://192.168.86.28:8000") {
+    init(baseURL: String = "http://localhost:8000") {
         self.baseURL = baseURL
     }
     
