@@ -130,9 +130,11 @@ final class MockGarmentAPI: GarmentAPI {
 
 final class RealGarmentAPI: GarmentAPI {
     private let baseURL: String
+    private let cdnBaseURL: String
     
-    init(baseURL: String = "http://localhost:8000") {
+    init(baseURL: String = "http://192.168.86.28:8000", cdnBaseURL: String = "http://192.168.86.28:9000") {
         self.baseURL = baseURL
+        self.cdnBaseURL = cdnBaseURL
     }
     
     // MARK: - API Protocol Implementation
@@ -141,8 +143,7 @@ final class RealGarmentAPI: GarmentAPI {
         // Convert owner string to int (default to 1 if "local" or nil)
         let userId = convertOwnerToUserId(owner)
         
-        var urlString = "\(baseURL)/api/item/get?user_id=\(userId)"
-        guard let url = URL(string: urlString) else {
+        guard let url = URL(string: "\(baseURL)/garments/\(userId)") else {
             throw URLError(.badURL)
         }
         
@@ -163,11 +164,11 @@ final class RealGarmentAPI: GarmentAPI {
         let apiResponse = try JSONDecoder().decode(APIWardrobeResponse.self, from: data)
         
         // Convert API garments to DTOs
-        return apiResponse.garments.map { $0.toDTO() }
+        return apiResponse.garments.map { $0.toDTO(cdnBaseURL: cdnBaseURL) }
     }
     
     func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO {
-        guard let url = URL(string: "\(baseURL)/create_garment") else {
+        guard let url = URL(string: "\(baseURL)/garments") else {
             throw URLError(.badURL)
         }
         
@@ -194,7 +195,7 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func updateGarment(id: Int, dirty: Bool?) async throws -> GarmentDTO {
@@ -231,7 +232,7 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func updateGarmentFull(_ garment: GarmentDTO) async throws -> GarmentDTO {
@@ -252,7 +253,7 @@ final class RealGarmentAPI: GarmentAPI {
         let category = convertUICategoryToAPICategory(garment.category)
         let material = convertMaterialStringToAPIMaterial(garment.material)
         let colorHex = convertColorToHex(garment.color)
-        let imageUrl = garment.imageURL?.absoluteString
+        let imageUrl = relativeImagePath(from: garment.imageURL)
         
         let updateRequest = UpdateRequest(
             category: category,
@@ -286,12 +287,32 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func deleteGarment(id: Int) async throws {
-        // Backend team is working on this, so throw an error for now
-        throw NSError(domain: "RealGarmentAPI", code: 501, userInfo: [NSLocalizedDescriptionKey: "Delete endpoint not yet implemented by backend"])
+        guard let url = URL(string: "\(baseURL)/garments/\(id)") else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 404 {
+                throw NSError(domain: "RealGarmentAPI", code: 404, userInfo: [NSLocalizedDescriptionKey: "Garment not found"])
+            }
+            if httpResponse.statusCode == 500 {
+                throw NSError(domain: "RealGarmentAPI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Internal server error"])
+            }
+            throw URLError(.badServerResponse)
+        }
     }
     
     // MARK: - Helper Functions
@@ -303,6 +324,28 @@ final class RealGarmentAPI: GarmentAPI {
         }
         // Try to parse as int if it's a number string
         return Int(owner ?? "1") ?? 1
+    }
+    
+    private func relativeImagePath(from url: URL?) -> String? {
+        guard let url = url else { return nil }
+        let absolute = url.absoluteString
+        let normalizedBase = normalizedCDNBaseURL()
+        if absolute.hasPrefix(normalizedBase) {
+            let suffix = absolute.dropFirst(normalizedBase.count)
+            if suffix.isEmpty {
+                return "/"
+            }
+            return suffix.first == "/" ? String(suffix) : "/\(suffix)"
+        }
+        let path = url.path
+        return path.isEmpty ? absolute : path
+    }
+    
+    private func normalizedCDNBaseURL() -> String {
+        if cdnBaseURL.hasSuffix("/") {
+            return String(cdnBaseURL.dropLast())
+        }
+        return cdnBaseURL
     }
 }
 
@@ -323,7 +366,7 @@ private struct APIGarmentResponse: Codable {
     let dirty: Bool
     let created_at: String
     
-    func toDTO() -> GarmentDTO {
+    func toDTO(cdnBaseURL: String) -> GarmentDTO {
         GarmentDTO(
             id: id,
             owner: String(owner),
@@ -331,9 +374,21 @@ private struct APIGarmentResponse: Codable {
             color: convertHexToColor(color),
             name: name,
             material: convertAPIMaterialToMaterialString(material),
-            imageURL: URL(string: image_url),
+            imageURL: Self.buildImageURL(from: image_url, cdnBaseURL: cdnBaseURL),
             dirty: dirty
         )
+    }
+    
+    private static func buildImageURL(from path: String, cdnBaseURL: String) -> URL? {
+        guard !path.isEmpty else { return nil }
+        if let url = URL(string: path), url.scheme != nil {
+            return url
+        }
+        let normalizedBase = cdnBaseURL.hasSuffix("/") ? String(cdnBaseURL.dropLast()) : cdnBaseURL
+        if path.hasPrefix("/") {
+            return URL(string: normalizedBase + path)
+        }
+        return URL(string: "\(normalizedBase)/\(path)")
     }
 }
 
@@ -343,7 +398,6 @@ struct APICreateGarmentRequest: Codable {
     let material: Int
     let color: String
     let name: String
-    let image_url: String
     let dirty: Bool
 }
 
@@ -463,7 +517,6 @@ extension GarmentDTO {
         let category = convertUICategoryToAPICategory(self.category)
         let material = convertMaterialStringToAPIMaterial(self.material)
         let colorHex = convertColorToHex(self.color)
-        let imageUrl = self.imageURL?.absoluteString ?? ""
         
         return APICreateGarmentRequest(
             owner: userId,
@@ -471,7 +524,6 @@ extension GarmentDTO {
             material: material,
             color: colorHex,
             name: self.name,
-            image_url: imageUrl,
             dirty: self.dirty
         )
     }
@@ -487,7 +539,8 @@ extension GarmentDTO {
             color: color,
             isInLaundry: dirty,
             category: category,
-            description: material ?? ""
+            description: material ?? "",
+            imageURL: imageURL
         )
     }
 }
@@ -501,7 +554,7 @@ extension ClothingItem {
             color: color,
             name: name,
             material: description,
-            imageURL: nil,
+            imageURL: imageURL,
             dirty: isInLaundry
         )
     }

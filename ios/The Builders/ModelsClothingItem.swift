@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 // Data model for clothing items
 struct ClothingItem: Identifiable, Equatable {
@@ -15,6 +16,7 @@ struct ClothingItem: Identifiable, Equatable {
     var isInLaundry: Bool
     var category: String
     var description: String
+    var imageURL: URL?
     
     // Categories enum for type safety
     enum Category: String, CaseIterable {

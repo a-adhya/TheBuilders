@@ -117,7 +117,7 @@ struct FeedbackView: View {
     
     init() {
         // Always use real chat service for production
-        self.chatService = ChatService(baseURL: "http://localhost:8000")
+        self.chatService = ChatService(baseURL: "http://192.168.86.28:8000")
     }
 
     var body: some View {
