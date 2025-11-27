@@ -205,9 +205,150 @@ class ClothingClassificationService:
             print(f"Error in color classification: {e}")
             return None, 0.0
     
+    def classify_image_with_crop(self, image_data: bytes) -> Dict:
+        """
+        Perform clothing type detection, then color classification on the detected region.
+        
+        Args:
+            image_data: Raw image bytes
+            
+        Returns:
+            Dictionary containing classification results
+        """
+        try:
+            # First, detect clothing type and get bounding box
+            image = self._preprocess_image(image_data)
+            type_results = self.type_model(image)
+            
+            results = {
+                "category": None,
+                "category_confidence": 0.0,
+                "color": "#808080",  # Default gray
+                "color_confidence": 0.0,
+                "success": False,
+                "cropped_region_used": False
+            }
+            
+            # Extract clothing detection
+            if len(type_results) > 0 and len(type_results[0].boxes) > 0:
+                boxes = type_results[0].boxes
+                confidences = boxes.conf.cpu().numpy()
+                class_ids = boxes.cls.cpu().numpy()
+                xyxy = boxes.xyxy.cpu().numpy()  # Bounding boxes
+                
+                # Get best detection
+                best_idx = np.argmax(confidences)
+                best_confidence = confidences[best_idx]
+                best_class_id = int(class_ids[best_idx])
+                best_box = xyxy[best_idx]  # [x1, y1, x2, y2]
+                
+                # Map class ID to category
+                class_names = type_results[0].names
+                predicted_class = class_names.get(best_class_id, "unknown").lower()
+                category = self.category_mapping.get(predicted_class)
+                
+                results["category"] = category
+                results["category_confidence"] = float(best_confidence)
+                
+                # Crop the detected clothing region for color analysis
+                x1, y1, x2, y2 = map(int, best_box)
+                
+                # Ensure coordinates are within image bounds
+                h, w = image.shape[:2]
+                x1 = max(0, min(x1, w))
+                y1 = max(0, min(y1, h))  
+                x2 = max(0, min(x2, w))
+                y2 = max(0, min(y2, h))
+                
+                # Crop the image to the detected clothing region
+                cropped_image = image[y1:y2, x1:x2]
+                
+                if cropped_image.size > 0:
+                    # Run color classification on the cropped region
+                    color_results = self.color_model(cropped_image)
+                    results["cropped_region_used"] = True
+                    
+                    if len(color_results) > 0:
+                        probs = color_results[0].probs
+                        if probs is not None:
+                            top_class_id = probs.top1
+                            color_confidence = probs.top1conf.item()
+                            
+                            class_names = color_results[0].names
+                            predicted_color = class_names.get(top_class_id, "unknown").lower()
+                            hex_color = self.color_mapping.get(predicted_color, "#808080")
+                            
+                            results["color"] = hex_color
+                            results["color_confidence"] = float(color_confidence)
+                
+                results["success"] = True
+                
+            return results
+            
+        except Exception as e:
+            return {
+                "category": None,
+                "category_confidence": 0.0,
+                "color": "#808080",
+                "color_confidence": 0.0,
+                "success": False,
+                "error": str(e),
+                "cropped_region_used": False
+            }
+
     def classify_image(self, image_data: bytes) -> Dict:
         """
         Perform both clothing type and color classification on an image.
+        Uses cropped region detection for better color accuracy.
+        
+        Args:
+            image_data: Raw image bytes
+            
+        Returns:
+            Dictionary containing classification results
+        """
+        try:
+            # Use the improved cropped region method
+            results = self.classify_image_with_crop(image_data)
+            
+            # Improve "Others" color handling - fallback to full image if we get gray
+            if results.get('color') == '#808080' and results.get('cropped_region_used'):
+                # Try original method as fallback
+                original_results = self._classify_image_original(image_data)
+                
+                # Use original color if it's not "Others" and has decent confidence
+                if (original_results.get('color') != '#808080' and 
+                    original_results.get('color_confidence', 0) > 0.3):
+                    results['color'] = original_results['color']
+                    results['color_confidence'] = original_results['color_confidence']
+            
+            # Clean up response - remove internal fields
+            final_results = {
+                "category": results['category'],
+                "category_confidence": results['category_confidence'],
+                "color": results['color'],
+                "color_confidence": results['color_confidence'],
+                "success": results['success']
+            }
+            
+            if not results['success'] and 'error' in results:
+                final_results['error'] = results['error']
+                
+            return final_results
+            
+        except Exception as e:
+            return {
+                "category": None,
+                "category_confidence": 0.0,
+                "color": "#808080",
+                "color_confidence": 0.0,
+                "success": False,
+                "error": str(e)
+            }
+
+    def _classify_image_original(self, image_data: bytes) -> Dict:
+        """
+        Original classification method (full image) - kept as fallback for color.
         
         Args:
             image_data: Raw image bytes
@@ -218,7 +359,7 @@ class ClothingClassificationService:
         results = {
             "category": None,
             "category_confidence": 0.0,
-            "color": "#808080",  # Default gray color
+            "color": "#808080",
             "color_confidence": 0.0,
             "success": False
         }
@@ -231,7 +372,7 @@ class ClothingClassificationService:
                 results["category_confidence"] = type_conf
                 results["success"] = True
             
-            # Classify color
+            # Classify color on full image
             color, color_conf = self.classify_color(image_data) 
             if color:
                 results["color"] = color
@@ -241,7 +382,6 @@ class ClothingClassificationService:
             return results
             
         except Exception as e:
-            print(f"Error in image classification: {e}")
             results["error"] = str(e)
             return results
 
