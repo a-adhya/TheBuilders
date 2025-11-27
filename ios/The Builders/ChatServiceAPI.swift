@@ -11,7 +11,130 @@ import Foundation
 
 struct ConversationMessage: Codable {
     let role: String
-    let content: String
+    let content: ContentValue
+    
+    enum ContentValue: Codable {
+        case string(String)
+        case array([ContentBlock])
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .string(let str):
+                try container.encode(str)
+            case .array(let arr):
+                try container.encode(arr)
+            }
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let str = try? container.decode(String.self) {
+                self = .string(str)
+            } else if let arr = try? container.decode([ContentBlock].self) {
+                self = .array(arr)
+            } else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Content must be string or array")
+            }
+        }
+        
+        // Helper method to extract text content
+        func getText() -> String {
+            switch self {
+            case .string(let str):
+                return str
+            case .array(let blocks):
+                return blocks.compactMap { $0.text }.joined(separator: " ")
+            }
+        }
+        
+        // Helper method to check if content contains a string
+        func contains(_ searchString: String) -> Bool {
+            return getText().contains(searchString)
+        }
+        
+        // Helper method to append text to content
+        func appending(_ text: String) -> ContentValue {
+            switch self {
+            case .string(let str):
+                return .string(str + text)
+            case .array(let blocks):
+                var newBlocks = blocks
+                // Find the last text block or create one
+                if let lastIndex = newBlocks.lastIndex(where: { $0.type == "text" && $0.text != nil }) {
+                    let lastTextBlock = newBlocks[lastIndex]
+                    if let existingText = lastTextBlock.text {
+                        newBlocks[lastIndex] = ContentBlock(type: "text", source: nil, text: existingText + text)
+                    }
+                } else {
+                    // No text block found, add a new one
+                    newBlocks.append(ContentBlock(type: "text", source: nil, text: text))
+                }
+                return .array(newBlocks)
+            }
+        }
+        
+        // Helper method to get lowercase text
+        var lowercased: String {
+            return getText().lowercased()
+        }
+    }
+    
+    struct ContentBlock: Codable {
+        let type: String
+        let source: ImageSource?
+        let text: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case type
+            case source
+            case text
+        }
+    }
+    
+    struct ImageSource: Codable {
+        let type: String
+        let url: String?
+        let media_type: String?
+        let data: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case type
+            case url
+            case media_type
+            case data
+        }
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(type, forKey: .type)
+            
+            // For URL type, only encode url (no media_type or data)
+            if type == "url", let url = url {
+                try container.encode(url, forKey: .url)
+            }
+            // For base64 type, encode media_type and data (no url)
+            else if type == "base64" {
+                if let media_type = media_type {
+                    try container.encode(media_type, forKey: .media_type)
+                }
+                if let data = data {
+                    try container.encode(data, forKey: .data)
+                }
+            }
+        }
+    }
+    
+    init(role: String, content: ContentValue) {
+        self.role = role
+        self.content = content
+    }
+    
+    // Convenience initializer for text-only messages
+    init(role: String, text: String) {
+        self.role = role
+        self.content = .string(text)
+    }
 }
 
 struct ChatRequest: Codable {
@@ -70,7 +193,7 @@ final class ChatService: ChatServiceProtocol {
            !hasWeatherInfo {
             let weatherContext = createWeatherContext(from: weatherData)
             // Append weather context to the last user message
-            let enhancedContent = lastMessage.content + "\n\n" + weatherContext
+            let enhancedContent = lastMessage.content.appending("\n\n" + weatherContext)
             processedMessages[processedMessages.count - 1] = ConversationMessage(
                 role: "user",
                 content: enhancedContent
@@ -151,7 +274,7 @@ final class MockChatService: ChatServiceProtocol {
             return "I'm here to help with your fashion questions! 👗"
         }
         
-        let userContent = lastMessage.content.lowercased()
+        let userContent = lastMessage.content.lowercased
         
         if userContent.contains("outfit") || userContent.contains("clothes") {
             return generateOutfitResponse(userMessage: userContent, weatherData: weatherData)
