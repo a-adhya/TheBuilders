@@ -351,7 +351,7 @@ struct FeedbackView: View {
             PHPickerViewControllerWrapper(images: $selectedImages)
         }
         .sheet(isPresented: $showCamera) {
-            ImagePicker(images: $selectedImages, sourceType: .camera)
+            FeedbackImagePicker(images: $selectedImages, sourceType: .camera)
         }
     }
 
@@ -460,7 +460,7 @@ struct FeedbackView: View {
 
 // MARK: - Image Picker
 
-struct ImagePicker: UIViewControllerRepresentable {
+struct FeedbackImagePicker: UIViewControllerRepresentable {
     @Binding var images: [UIImage]
     var sourceType: UIImagePickerController.SourceType
     @Environment(\.dismiss) private var dismiss
@@ -480,9 +480,9 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+        let parent: FeedbackImagePicker
         
-        init(_ parent: ImagePicker) {
+        init(_ parent: FeedbackImagePicker) {
             self.parent = parent
         }
         

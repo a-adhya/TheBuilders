@@ -224,33 +224,67 @@ struct OutfitTryOnView1: View {
     private func regenerateOutfit() async {
         isRegenerating = true
         
-        do {
-            // Call backend with empty context for regeneration
-            let garments = try await outfitAPI.generateOutfit(context: "", userId: userId)
-            
-            if garments.isEmpty {
-                isRegenerating = false
-                print("Error: no garments found")
+        // Agentic loop: handle tool requests until we get garments
+        var previousMessages: [[String: Any]]? = nil
+        
+        while true {
+            do {
+                let result = try await outfitAPI.generateOutfit(context: "", userId: userId, previousMessages: previousMessages)
+                
+                switch result {
+                case .garments(let garments):
+                    if garments.isEmpty {
+                        await MainActor.run {
+                            self.isRegenerating = false
+                        }
+                        print("Error: no garments found")
+                        return
+                    }
+                    
+                    guard let newOutfit = garmentsToOutfit(garments: garments) else {
+                        isRegenerating = false
+                        print("Error: Could not generate outfit from available garments")
+                        return
+                    }
+                    
+                    await MainActor.run {
+                        self.currentOutfit = newOutfit
+                        self.isRegenerating = false
+                        self.navigateToRegenerate = true
+                    }
+                    return
+                    
+                case .toolRequest(let messages, let toolName):
+                    if toolName == "get_location" {
+                        let locationService = LocationService()
+                        do {
+                            let (latitude, longitude) = try await locationService.getCurrentLocation()
+                            previousMessages = updateLocationToolResult(
+                                previousMessages: messages,
+                                latitude: latitude,
+                                longitude: longitude
+                            )
+                            continue
+                        } catch {
+                            await MainActor.run {
+                                self.isRegenerating = false
+                            }
+                            print("Failed to get location: \(error.localizedDescription)")
+                            return
+                        }
+                    } else {
+                        await MainActor.run {
+                            self.isRegenerating = false
+                        }
+                        print("Unknown tool request: \(toolName)")
+                        return
+                    }
+                }
+            } catch {
+                self.isRegenerating = false
+                print("Error regenerating outfit: \(error)")
                 return
             }
-            
-            // Convert garments to Outfit structure
-            guard let newOutfit = garmentsToOutfit(garments: garments) else {
-                isRegenerating = false
-                print("Error: Could not generate outfit from available garments")
-                return
-            }
-            
-            // Update current outfit and navigate to OutfitTryOnView2
-            self.currentOutfit = newOutfit
-            self.isRegenerating = false
-            self.navigateToRegenerate = true
-            
-            // Reload try-on image with new outfit
-            await loadTryOnImage()
-        } catch {
-            self.isRegenerating = false
-            print("Error regenerating outfit: \(error)")
         }
     }
     

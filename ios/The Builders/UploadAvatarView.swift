@@ -61,7 +61,7 @@ struct UploadAvatarView: View {
             .navigationBarHidden(true)
             .photosPicker(isPresented: $showImagePicker, selection: $selectedPhoto, matching: .images)
             .sheet(isPresented: $showCamera) {
-                ImagePicker(image: $selectedImage, sourceType: .camera)
+                AvatarImagePicker(image: $selectedImage, sourceType: .camera)
             }
             .onChange(of: selectedPhoto) { oldValue, newValue in
                 Task {
@@ -238,7 +238,7 @@ struct UploadAvatarView: View {
 }
 
 // MARK: - Image Picker (Camera)
-struct ImagePicker: UIViewControllerRepresentable {
+struct AvatarImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     @Environment(\.dismiss) private var dismiss
     var sourceType: UIImagePickerController.SourceType
@@ -257,9 +257,9 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+        let parent: AvatarImagePicker
         
-        init(_ parent: ImagePicker) {
+        init(_ parent: AvatarImagePicker) {
             self.parent = parent
         }
         

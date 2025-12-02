@@ -113,7 +113,6 @@ class OutfitGeneratorService:
             max_tokens=1024,
             tools=tools,
             tool_choice={"type": "any"},
-            disable_parallel_tool_use=True,
             messages=previous_messages,
         )
 
@@ -127,7 +126,6 @@ class OutfitGeneratorService:
                     max_tokens=4096,
                     tools=tools,
                     tool_choice={"type": "any"},
-                    disable_parallel_tool_use=True,
                     messages=previous_messages,
                 )
                 continue
@@ -145,7 +143,6 @@ class OutfitGeneratorService:
                     max_tokens=1024,
                     tools=tools,
                     tool_choice={"type": "any"},
-                    disable_parallel_tool_use=True,
                     messages=previous_messages,
                 )
                 continue
@@ -157,13 +154,17 @@ class OutfitGeneratorService:
                     tool = content
                     break
 
+            # If no tool use found, check if we have a final response
+            if tool is None:
+                break
+
             # Execute tool
             if tool.name == "get_location":
                 # Forward to iOS frontend; include conversation state so the
                 # frontend can update it and return tool results back to the API.
                 tool_results = [{
                     "type": "tool_result",
-                    "tool_use_id": response.id,
+                    "tool_use_id": tool.id,
                     "content": "No location provided."
                 }]
                 return GenerateOutfitResponse(
@@ -186,7 +187,7 @@ class OutfitGeneratorService:
 
             tool_results = [{
                 "type": "tool_result",
-                "tool_use_id": response.id,
+                "tool_use_id": tool.id,
                 "content": result
             }]
 
@@ -203,7 +204,6 @@ class OutfitGeneratorService:
                 max_tokens=1024,
                 tools=tools,
                 tool_choice={"type": "any"},
-                disable_parallel_tool_use=True,
                 messages=previous_messages
             )
 
