@@ -20,6 +20,7 @@ struct AddClothingItemView: View {
     @State private var showPhotoLibrary = false
     @State private var isClassifying = false
     @State private var classificationComplete = false
+    @State private var classificationErrorMessage: String?
     
     private let categories: [String] = ClothingItem.Category.allCases.map { $0.rawValue }
     private let materials = ["Cotton", "Denim", "Wool", "Corduroy", "Silk", "Satin", "Leather", "Athletic"]
@@ -56,13 +57,6 @@ struct AddClothingItemView: View {
             }
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
-            .onChange(of: uploadImageData) { oldValue, newValue in
-                if newValue != nil && oldValue != newValue {
-                    Task {
-                        await classifyImage()
-                    }
-                }
-            }
             .alert(
                 "Unable to add item",
                 isPresented: Binding(
@@ -76,6 +70,21 @@ struct AddClothingItemView: View {
                 },
                 message: {
                     Text(errorMessage ?? "Unknown error")
+                }
+            )
+            .alert(
+                "Classification Failed",
+                isPresented: Binding(
+                    get: { classificationErrorMessage != nil },
+                    set: { newValue in
+                        if !newValue { classificationErrorMessage = nil }
+                    }
+                ),
+                actions: {
+                    Button("OK", role: .cancel) { classificationErrorMessage = nil }
+                },
+                message: {
+                    Text(classificationErrorMessage ?? "Unknown error")
                 }
             )
         }
@@ -138,26 +147,46 @@ struct AddClothingItemView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            // Classification status
-            if isClassifying {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Analyzing image...")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+            // Fill Fields With AI button
+            if uploadImageData != nil {
+                Button(action: {
+                    Task {
+                        await classifyImage()
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        if isClassifying {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        }
+                        Text(isClassifying ? "Analyzing..." : "Fill Fields With AI")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(isClassifying ? Color.purple.opacity(0.7) : Color.purple)
+                    .cornerRadius(22)
                 }
-                .padding(.top, 8)
-            } else if classificationComplete && uploadImageData != nil {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                    Text("Classification complete")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                .disabled(isClassifying)
+                .padding(.top, 12)
+                
+                // Classification status
+                if classificationComplete && !isClassifying {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                        Text("Fields filled successfully")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
             }
         }
         .padding(.horizontal, 20)
@@ -359,6 +388,7 @@ struct AddClothingItemView: View {
         await MainActor.run { 
             isClassifying = true 
             classificationComplete = false
+            classificationErrorMessage = nil
         }
         
         do {
@@ -367,24 +397,37 @@ struct AddClothingItemView: View {
             
             await MainActor.run {
                 if result.success {
-                    // Update category if detected with good confidence
-                    if let category = result.category, result.categoryConfidence > 0.6 {
-                        selectedCategory = category
-                    }
+                    // Check if confidence is high enough (> 0.6)
+                    let categoryConfident = result.category != nil && result.categoryConfidence > 0.6
+                    let colorConfident = result.colorConfidence > 0.6
                     
-                    // Update color if detected with good confidence
-                    if result.colorConfidence > 0.5 {
-                        selectedColor = Color.fromHex(result.color) ?? selectedColor
+                    if categoryConfident || colorConfident {
+                        // Update category if detected with good confidence
+                        if let category = result.category, result.categoryConfidence > 0.6 {
+                            selectedCategory = category
+                        }
+                        
+                        // Update color if detected with good confidence
+                        if result.colorConfidence > 0.6 {
+                            selectedColor = Color.fromHex(result.color) ?? selectedColor
+                        }
+                        
+                        classificationComplete = true
+                    } else {
+                        // Confidence too low - show error
+                        classificationErrorMessage = "The AI couldn't confidently identify the clothing item. Please fill out the fields manually."
                     }
+                } else {
+                    // Classification failed
+                    classificationErrorMessage = "Classification failed. Please fill out the fields manually."
                 }
                 
                 isClassifying = false
-                classificationComplete = true
             }
         } catch {
             await MainActor.run {
                 isClassifying = false
-                // Don't show error for classification failure - it's optional
+                classificationErrorMessage = "Unable to analyze image. Please fill out the fields manually."
                 print("Classification failed: \(error)")
             }
         }
