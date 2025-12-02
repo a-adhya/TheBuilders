@@ -50,7 +50,9 @@ struct ClothingItemCard: View {
     
     @ViewBuilder
     private var clothingIcon: some View {
-        if item.name.contains("T-Shirt") {
+        if let imageURL = item.imageURL {
+            remoteImageView(for: imageURL)
+        } else if item.name.contains("T-Shirt") {
             // T-Shirt icon
             Image(systemName: "tshirt.fill")
                 .font(.system(size: 60))
@@ -98,6 +100,30 @@ struct ClothingItemCard: View {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 40))
                     .foregroundColor(item.color)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func remoteImageView(for url: URL) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .empty:
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                    .frame(width: 120, height: 120)
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 150, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            case .failure:
+                Image(systemName: "photo")
+                    .font(.system(size: 50))
+                    .foregroundColor(.gray)
+            @unknown default:
+                EmptyView()
             }
         }
     }

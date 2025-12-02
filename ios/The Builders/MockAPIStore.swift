@@ -130,9 +130,11 @@ final class MockGarmentAPI: GarmentAPI {
 
 final class RealGarmentAPI: GarmentAPI {
     private let baseURL: String
+    private let cdnBaseURL: String
     
-    init(baseURL: String = "http://localhost:8000") {
+    init(baseURL: String = "http://127.0.0.1:8000", cdnBaseURL: String = "http://127.0.0.1:9000") {
         self.baseURL = baseURL
+        self.cdnBaseURL = cdnBaseURL
     }
     
     // MARK: - API Protocol Implementation
@@ -163,7 +165,7 @@ final class RealGarmentAPI: GarmentAPI {
         let apiResponse = try JSONDecoder().decode(APIWardrobeResponse.self, from: data)
         
         // Convert API garments to DTOs
-        return apiResponse.garments.map { $0.toDTO() }
+        return apiResponse.garments.map { $0.toDTO(cdnBaseURL: cdnBaseURL) }
     }
     
     func createGarment(_ garment: GarmentDTO) async throws -> GarmentDTO {
@@ -194,7 +196,7 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func updateGarment(id: Int, dirty: Bool?) async throws -> GarmentDTO {
@@ -231,7 +233,7 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func updateGarmentFull(_ garment: GarmentDTO) async throws -> GarmentDTO {
@@ -252,7 +254,7 @@ final class RealGarmentAPI: GarmentAPI {
         let category = convertUICategoryToAPICategory(garment.category)
         let material = convertMaterialStringToAPIMaterial(garment.material)
         let colorHex = convertColorToHex(garment.color)
-        let imageUrl = garment.imageURL?.absoluteString
+        let imageUrl = relativeImagePath(from: garment.imageURL)
         
         let updateRequest = UpdateRequest(
             category: category,
@@ -286,7 +288,7 @@ final class RealGarmentAPI: GarmentAPI {
         
         // Decode API response
         let apiResponse = try JSONDecoder().decode(APIGarmentResponse.self, from: data)
-        return apiResponse.toDTO()
+        return apiResponse.toDTO(cdnBaseURL: cdnBaseURL)
     }
     
     func deleteGarment(id: Int) async throws {
@@ -329,6 +331,28 @@ final class RealGarmentAPI: GarmentAPI {
         // Try to parse as int if it's a number string
         return Int(owner ?? "1") ?? 1
     }
+    
+    private func relativeImagePath(from url: URL?) -> String? {
+        guard let url = url else { return nil }
+        let absolute = url.absoluteString
+        let normalizedBase = normalizedCDNBaseURL()
+        if absolute.hasPrefix(normalizedBase) {
+            let suffix = absolute.dropFirst(normalizedBase.count)
+            if suffix.isEmpty {
+                return "/"
+            }
+            return suffix.first == "/" ? String(suffix) : "/\(suffix)"
+        }
+        let path = url.path
+        return path.isEmpty ? absolute : path
+    }
+    
+    private func normalizedCDNBaseURL() -> String {
+        if cdnBaseURL.hasSuffix("/") {
+            return String(cdnBaseURL.dropLast())
+        }
+        return cdnBaseURL
+    }
 }
 
 // MARK: - API Response Models
@@ -348,7 +372,7 @@ private struct APIGarmentResponse: Codable {
     let dirty: Bool
     let created_at: String
     
-    func toDTO() -> GarmentDTO {
+    func toDTO(cdnBaseURL: String) -> GarmentDTO {
         GarmentDTO(
             id: id,
             owner: String(owner),
@@ -356,9 +380,21 @@ private struct APIGarmentResponse: Codable {
             color: convertHexToColor(color),
             name: name,
             material: convertAPIMaterialToMaterialString(material),
-            imageURL: URL(string: image_url),
+            imageURL: Self.buildImageURL(from: image_url, cdnBaseURL: cdnBaseURL),
             dirty: dirty
         )
+    }
+    
+    private static func buildImageURL(from path: String, cdnBaseURL: String) -> URL? {
+        guard !path.isEmpty else { return nil }
+        if let url = URL(string: path), url.scheme != nil {
+            return url
+        }
+        let normalizedBase = cdnBaseURL.hasSuffix("/") ? String(cdnBaseURL.dropLast()) : cdnBaseURL
+        if path.hasPrefix("/") {
+            return URL(string: normalizedBase + path)
+        }
+        return URL(string: "\(normalizedBase)/\(path)")
     }
 }
 
@@ -509,7 +545,8 @@ extension GarmentDTO {
             color: color,
             isInLaundry: dirty,
             category: category,
-            description: material ?? ""
+            description: material ?? "",
+            imageURL: imageURL
         )
     }
 }
@@ -523,7 +560,7 @@ extension ClothingItem {
             color: color,
             name: name,
             material: description,
-            imageURL: nil,
+            imageURL: imageURL,
             dirty: isInLaundry
         )
     }
