@@ -9,7 +9,9 @@ import SwiftUI
 
 struct OutfitConfirm1: View {
     let outfit: Outfit
+    let tryOnImage: UIImage?  // The already generated try-on image
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var avatarManager: AvatarManager //for sharing the data across views
     @State private var navigateToComplete = false
     @State private var selectedOption: LaundryOption?
     
@@ -51,25 +53,41 @@ struct OutfitConfirm1: View {
                     }
                     .padding(.horizontal)
                     
-                    // Avatar display placeholder (white rectangle) - reduced height
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white)
-                        .frame(height: 200)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                        .overlay(
-                            VStack {
-                                Text("Avatar Preview")
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                                Text("(Image placeholder)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        )
-                        .padding(.horizontal)
+                    // Avatar display with try-on image
+                    if let tryOnImage = tryOnImage {
+                        Image(uiImage: tryOnImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 300, height: 450)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.purple.opacity(0.3), lineWidth: 2)
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                            .padding(.horizontal)
+                    } else {
+                        // Fallback placeholder if image is not available
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.white)
+                            .frame(width: 300, height: 450)
+                            .overlay(
+                                VStack {
+                                    Text("Avatar Preview")
+                                        .font(.headline)
+                                        .foregroundColor(.gray)
+                                    Text("(Image not available)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.purple.opacity(0.3), lineWidth: 2)
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                            .padding(.horizontal)
+                    }
                     
                     // Action buttons
                     VStack(spacing: 12) {
@@ -124,7 +142,8 @@ struct OutfitConfirm1: View {
             bottom: ClothingItem(id: 2, name: "Dark Green Pants", color: .green, isInLaundry: false, category: "Bottoms", description: "Comfortable dark green pants"),
             shoes: ClothingItem(id: 3, name: "Brown Boots", color: .brown, isInLaundry: false, category: "Shoes", description: "Brown lace-up boots"),
             accessories: nil
-        )
+        ),
+        tryOnImage: nil
     )
 }
 

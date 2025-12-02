@@ -29,18 +29,18 @@ protocol GarmentAPI {
 
 final class MockGarmentAPI: GarmentAPI {
     static let defaultSeed: [GarmentDTO] = [
-        GarmentDTO(id: 1, owner: "local", category: "Tops", color: .blue, name: "Blue T-Shirt", material: "Comfortable cotton blue t-shirt", imageURL: nil, dirty: false),
-        GarmentDTO(id: 2, owner: "local", category: "Tops", color: .green, name: "Green T-Shirt", material: "Soft green casual tee", imageURL: nil, dirty: false),
-        GarmentDTO(id: 3, owner: "local", category: "Tops", color: .orange, name: "Orange T-Shirt", material: "Bright orange summer shirt", imageURL: nil, dirty: true),
-        GarmentDTO(id: 4, owner: "local", category: "Tops", color: .red, name: "Red T-Shirt", material: "Classic red cotton t-shirt", imageURL: nil, dirty: false),
-        GarmentDTO(id: 5, owner: "local", category: "Bottoms", color: .blue, name: "Blue Jeans", material: "Comfortable denim jeans", imageURL: nil, dirty: false),
-        GarmentDTO(id: 6, owner: "local", category: "Bottoms", color: .black, name: "Black Pants", material: "Formal black trousers", imageURL: nil, dirty: false),
-        GarmentDTO(id: 7, owner: "local", category: "Dresses", color: .pink, name: "Summer Dress", material: "Light pink summer dress", imageURL: nil, dirty: false),
-        GarmentDTO(id: 8, owner: "local", category: "Dresses", color: .black, name: "Evening Dress", material: "Elegant black evening gown", imageURL: nil, dirty: true),
-        GarmentDTO(id: 9, owner: "local", category: "Shoes", color: .white, name: "Sneakers", material: "White running sneakers", imageURL: nil, dirty: false),
-        GarmentDTO(id: 10, owner: "local", category: "Shoes", color: .brown, name: "Boots", material: "Brown leather boots", imageURL: nil, dirty: false),
-        GarmentDTO(id: 11, owner: "local", category: "Accessories", color: .gray, name: "Watch", material: "Silver wrist watch", imageURL: nil, dirty: false),
-        GarmentDTO(id: 12, owner: "local", category: "Accessories", color: .gray, name: "Hat", material: "Gray baseball cap", imageURL: nil, dirty: false)
+        GarmentDTO(id: 4, owner: "local", category: "Tops", color: .blue, name: "Blue T-Shirt", material: "Comfortable cotton blue t-shirt", imageURL: nil, dirty: false),
+        GarmentDTO(id: 5, owner: "local", category: "Tops", color: .green, name: "Green T-Shirt", material: "Soft green casual tee", imageURL: nil, dirty: false),
+        GarmentDTO(id: 6, owner: "local", category: "Tops", color: .orange, name: "Orange T-Shirt", material: "Bright orange summer shirt", imageURL: nil, dirty: true),
+        GarmentDTO(id: 7, owner: "local", category: "Tops", color: .red, name: "Red T-Shirt", material: "Classic red cotton t-shirt", imageURL: nil, dirty: false),
+        GarmentDTO(id: 8, owner: "local", category: "Bottoms", color: .blue, name: "Blue Jeans", material: "Comfortable denim jeans", imageURL: nil, dirty: false),
+        GarmentDTO(id: 9, owner: "local", category: "Bottoms", color: .black, name: "Black Pants", material: "Formal black trousers", imageURL: nil, dirty: false),
+        GarmentDTO(id: 10, owner: "local", category: "Dresses", color: .pink, name: "Summer Dress", material: "Light pink summer dress", imageURL: nil, dirty: false),
+        GarmentDTO(id: 11, owner: "local", category: "Dresses", color: .black, name: "Evening Dress", material: "Elegant black evening gown", imageURL: nil, dirty: true),
+        GarmentDTO(id: 12, owner: "local", category: "Shoes", color: .white, name: "Sneakers", material: "White running sneakers", imageURL: nil, dirty: false),
+        GarmentDTO(id: 13, owner: "local", category: "Shoes", color: .brown, name: "Boots", material: "Brown leather boots", imageURL: nil, dirty: false),
+        GarmentDTO(id: 14, owner: "local", category: "Accessories", color: .gray, name: "Watch", material: "Silver wrist watch", imageURL: nil, dirty: false),
+        GarmentDTO(id: 15, owner: "local", category: "Accessories", color: .gray, name: "Hat", material: "Gray baseball cap", imageURL: nil, dirty: false)
     ]
 
     private var garments: [GarmentDTO]
