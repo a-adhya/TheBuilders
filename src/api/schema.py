@@ -95,6 +95,15 @@ class AvatarUploadResponse(BaseModel):
     avatar_url: str
 
 
+
+class ClassifyImageResponse(BaseModel):
+    category: Optional[Category] = None
+    category_confidence: float
+    color: str
+    color_confidence: float 
+    success: bool
+    error: Optional[str] = None
+
 class TryOnImageRequest(BaseModel):
     """Separate request schema for the try-on preview endpoint.
 
@@ -111,4 +120,5 @@ class TryOnImageResponse(BaseModel):
     this model exists separately in case a JSON wrapper is desired elsewhere.
     """
     info: Optional[str] = None
+
 

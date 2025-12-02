@@ -14,7 +14,7 @@ import Foundation
 @MainActor
 class WardrobeManager: ObservableObject {
     @Published var items: [ClothingItem] = []
-    private let api: GarmentAPI
+    let api: GarmentAPI  // Made public for image classification access
     
     // Categories for easy access
     let categories: [String] = ClothingItem.Category.allCases.map { category in category.rawValue }

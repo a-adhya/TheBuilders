@@ -18,6 +18,8 @@ struct AddClothingItemView: View {
     @State private var showImageSourcePicker = false
     @State private var showCamera = false
     @State private var showPhotoLibrary = false
+    @State private var isClassifying = false
+    @State private var classificationComplete = false
     
     private let categories: [String] = ClothingItem.Category.allCases.map { $0.rawValue }
     private let materials = ["Cotton", "Denim", "Wool", "Corduroy", "Silk", "Satin", "Leather", "Athletic"]
@@ -54,6 +56,13 @@ struct AddClothingItemView: View {
             }
             .background(Color(.systemGray6))
             .navigationBarHidden(true)
+            .onChange(of: uploadImageData) { oldValue, newValue in
+                if newValue != nil && oldValue != newValue {
+                    Task {
+                        await classifyImage()
+                    }
+                }
+            }
             .alert(
                 "Unable to add item",
                 isPresented: Binding(
@@ -128,6 +137,28 @@ struct AddClothingItemView: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
+            
+            // Classification status
+            if isClassifying {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Analyzing image...")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 8)
+            } else if classificationComplete && uploadImageData != nil {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                    Text("Classification complete")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 8)
+            }
         }
         .padding(.horizontal, 20)
         .confirmationDialog("Select Image Source", isPresented: $showImageSourcePicker, titleVisibility: .visible) {
@@ -322,6 +353,43 @@ struct AddClothingItemView: View {
     
     // MARK: - Private helpers
     
+    private func classifyImage() async {
+        guard let imageData = uploadImageData else { return }
+        
+        await MainActor.run { 
+            isClassifying = true 
+            classificationComplete = false
+        }
+        
+        do {
+            // Get the API instance from WardrobeManager
+            let result = try await wardrobeManager.api.classifyImage(imageData)
+            
+            await MainActor.run {
+                if result.success {
+                    // Update category if detected with good confidence
+                    if let category = result.category, result.categoryConfidence > 0.6 {
+                        selectedCategory = category
+                    }
+                    
+                    // Update color if detected with good confidence
+                    if result.colorConfidence > 0.5 {
+                        selectedColor = Color.fromHex(result.color) ?? selectedColor
+                    }
+                }
+                
+                isClassifying = false
+                classificationComplete = true
+            }
+        } catch {
+            await MainActor.run {
+                isClassifying = false
+                // Don't show error for classification failure - it's optional
+                print("Classification failed: \(error)")
+            }
+        }
+    }
+    
     private func submitItem() async {
         guard let imageData = uploadImageData else {
             await MainActor.run {
@@ -357,6 +425,28 @@ struct AddClothingItemView: View {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+}
+
+}
+
+// MARK: - Color Extension
+extension Color {
+    static func fromHex(_ hex: String) -> Color? {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        
+        var rgb: UInt64 = 0
+        
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else {
+            return nil
+        }
+        
+        let red = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let green = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let blue = Double(rgb & 0x0000FF) / 255.0
+        
+        return Color(red: red, green: green, blue: blue)
     }
 }
 

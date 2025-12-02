@@ -15,6 +15,15 @@ struct GarmentDTO: Identifiable, Equatable {
     var dirty: Bool
 }
 
+struct ImageClassificationResult {
+    let category: String?
+    let categoryConfidence: Double
+    let color: String // hex color
+    let colorConfidence: Double
+    let success: Bool
+    let error: String?
+}
+
 // MARK: - API Protocol
 
 protocol GarmentAPI {
@@ -23,6 +32,7 @@ protocol GarmentAPI {
     func updateGarment(id: Int, dirty: Bool?) async throws -> GarmentDTO
     func updateGarmentFull(_ garment: GarmentDTO) async throws -> GarmentDTO
     func deleteGarment(id: Int) async throws
+    func classifyImage(_ imageData: Data) async throws -> ImageClassificationResult
 }
 
 // MARK: - Mock API (in-memory)
@@ -102,6 +112,22 @@ final class MockGarmentAPI: GarmentAPI {
     func deleteGarment(id: Int) async throws {
         try await sleepLatency()
         _ = queueSync { garments.removeAll { $0.id == id } }
+    }
+    
+    func classifyImage(_ imageData: Data) async throws -> ImageClassificationResult {
+        try await sleepLatency()
+        // Mock classification - return random results for testing
+        let categories = ["Tops", "Bottoms", "Shoes", "Accessories"]
+        let colors = ["#FF0000", "#0000FF", "#008000", "#000000", "#FFFFFF"]
+        
+        return ImageClassificationResult(
+            category: categories.randomElement(),
+            categoryConfidence: Double.random(in: 0.7...0.95),
+            color: colors.randomElement() ?? "#808080",
+            colorConfidence: Double.random(in: 0.6...0.9),
+            success: true,
+            error: nil
+        )
     }
 
     // MARK: - Helpers
@@ -321,6 +347,55 @@ final class RealGarmentAPI: GarmentAPI {
         // Delete successful, no return value needed per protocol
     }
     
+    func classifyImage(_ imageData: Data) async throws -> ImageClassificationResult {
+        guard let url = URL(string: "\(baseURL)/classify-image") else {
+            throw URLError(.badURL)
+        }
+        
+        // Create multipart form data
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        
+        // Add image data
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        request.httpBody = body
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 400 {
+                throw NSError(domain: "RealGarmentAPI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid image"])
+            }
+            throw URLError(.badServerResponse)
+        }
+        
+        // Parse classification response
+        let decoder = JSONDecoder()
+        let apiResponse = try decoder.decode(APIClassificationResponse.self, from: data)
+        
+        return ImageClassificationResult(
+            category: apiResponse.category?.categoryString(),
+            categoryConfidence: apiResponse.category_confidence,
+            color: apiResponse.color,
+            colorConfidence: apiResponse.color_confidence,
+            success: apiResponse.success,
+            error: apiResponse.error
+        )
+    }
+    
     // MARK: - Helper Functions
     
     private func convertOwnerToUserId(_ owner: String?) -> Int {
@@ -407,7 +482,22 @@ struct APICreateGarmentRequest: Codable {
     let dirty: Bool
 }
 
+private struct APIClassificationResponse: Codable {
+    let category: Int?
+    let category_confidence: Double
+    let color: String
+    let color_confidence: Double
+    let success: Bool
+    let error: String?
+}
+
 // MARK: - Conversion Helpers
+
+extension Int {
+    func categoryString() -> String {
+        return convertAPICategoryToUICategory(self)
+    }
+}
 
 private func convertAPICategoryToUICategory(_ apiCategory: Int) -> String {
     switch apiCategory {

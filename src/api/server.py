@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Response
+
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response
+
+
 from contextlib import asynccontextmanager
 
-from api.schema import (
+from src.api.schema import (
     CreateGarmentRequest,
     CreateGarmentResponse,
     DeleteGarmentResponse,
@@ -11,21 +14,22 @@ from api.schema import (
     GenerateOutfitResponse,
     ChatRequest,
     ChatResponse,
-    AvatarUploadResponse
-    , TryOnImageRequest
+
+    AvatarUploadResponse,
+    ClassifyImageResponse, 
+    TryOnImageRequest
 )
-from api.validate import (
+from src.api.validate import (
     validate_create_garment_request,
     validate_update_garment_request,
 )
-from db.driver import make_engine, make_session_factory, create_tables
-from db.schema import Garment
-from fastapi import Depends
-from services.garment_service import GarmentService, DbGarmentService
-from services.outfit_generator_service import OutfitGeneratorService
-from services.chat_service import ChatService
-from services.avatar_service import AvatarService
-from fastapi import UploadFile, File
+from src.db.driver import make_engine, make_session_factory, create_tables
+from src.db.schema import Garment
+from src.services.garment_service import GarmentService, DbGarmentService
+from src.services.outfit_generator_service import OutfitGeneratorService
+from src.services.chat_service import ChatService
+from src.services.avatar_service import AvatarService
+from src.services.classification_service import ClothingClassificationService, get_classification_service
 from minio import Minio
 
 from sqlalchemy.exc import OperationalError
@@ -68,6 +72,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for monitoring and testing."""
+    return {"status": "healthy", "service": "clothing-classification-api"}
 
 
 def get_garment_service() -> GarmentService:
@@ -274,6 +284,43 @@ async def upload_avatar(
         raise HTTPException(status_code=500, detail="internal error")
 
 
+@app.post("/classify-image", response_model=ClassifyImageResponse)
+async def classify_image(
+    image: UploadFile = File(...),
+    svc: ClothingClassificationService = Depends(get_classification_service),
+):
+    """
+    Classify a clothing item image to detect clothing type and color.
+    
+    Request:
+    - image: Image file (JPEG, PNG, etc.)
+    
+    Response:
+    - category: Detected clothing category (Category enum value)
+    - category_confidence: Confidence score for category prediction (0-1)
+    - color: Detected color as hex string (e.g. "#FF0000")
+    - color_confidence: Confidence score for color prediction (0-1)
+    - success: Whether classification was successful
+    - error: Error message if classification failed
+    """
+    try:
+        # Validate file type
+        if not image.content_type or not image.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Read image content
+        content = await image.read()
+        
+        # Perform classification
+        results = svc.classify_image(content)
+        
+        return ClassifyImageResponse(**results)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in image classification endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 @app.post("/users/{user_id}/tryon")
 def tryon_preview(
     user_id: int,
