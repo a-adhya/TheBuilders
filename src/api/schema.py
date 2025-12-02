@@ -95,6 +95,7 @@ class AvatarUploadResponse(BaseModel):
     avatar_url: str
 
 
+
 class ClassifyImageResponse(BaseModel):
     category: Optional[Category] = None
     category_confidence: float
@@ -102,4 +103,22 @@ class ClassifyImageResponse(BaseModel):
     color_confidence: float 
     success: bool
     error: Optional[str] = None
+
+class TryOnImageRequest(BaseModel):
+    """Separate request schema for the try-on preview endpoint.
+
+    This intentionally does not reuse other try-on request types to keep a
+    distinct API contract per your instruction.
+    """
+    garments: List[int]
+
+
+class TryOnImageResponse(BaseModel):
+    """Optional metadata for the try-on preview endpoint responses.
+
+    Note: the endpoint will return raw `image/png` bytes in the response body;
+    this model exists separately in case a JSON wrapper is desired elsewhere.
+    """
+    info: Optional[str] = None
+
 
