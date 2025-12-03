@@ -207,8 +207,10 @@ def generate_outfit(
 
         return outfit_generator.generate_outfit(garments, context, payload.previous_messages)
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="internal error")
+        import traceback
+        print(f"Error in generate_outfit: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"internal error: {str(e)}")
 
 
 @app.post("/chat", response_model=ChatResponse)

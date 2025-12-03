@@ -428,7 +428,6 @@ struct AddClothingItemView: View {
     }
 }
 
-}
 
 // MARK: - Color Extension
 extension Color {

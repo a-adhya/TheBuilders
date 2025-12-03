@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from anthropic import Anthropic
 import os
+import httpx
 from api.schema import GenerateOutfitResponse, ListByOwnerResponse
 from typing import Optional, List, Dict, Any
 
@@ -30,10 +31,80 @@ class OutfitGeneratorService:
             self.client = None
 
     def call_weather_api(self, latitude, longitude):
-        # Placeholder function to call a weather API with the given input data
-        # and return the weather information.
-        # TODO: implement actual weather API call
-        pass
+        """
+        Fetch current weather data using Open-Meteo API (free, no API key required).
+        Returns a formatted string with weather information for Claude to use.
+        """
+        try:
+            url = (
+                f"https://api.open-meteo.com/v1/forecast"
+                f"?latitude={latitude}&longitude={longitude}"
+                f"&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
+                f"&daily=temperature_2m_max,temperature_2m_min"
+                f"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto"
+            )
+            
+            response = httpx.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            
+            current = data.get("current", {})
+            daily = data.get("daily", {})
+            
+            temp_f = round(current.get("temperature_2m", 0))
+            humidity = round(current.get("relative_humidity_2m", 0))
+            wind_mph = round(current.get("wind_speed_10m", 0))
+            weather_code = current.get("weather_code", 0)
+            
+            daily_max = daily.get("temperature_2m_max", [])
+            daily_min = daily.get("temperature_2m_min", [])
+            high_f = round(daily_max[0]) if daily_max else temp_f
+            low_f = round(daily_min[0]) if daily_min else temp_f
+            
+            # Map weather code to condition (WMO Weather interpretation codes)
+            condition = self._get_weather_condition(weather_code)
+            
+            weather_info = (
+                f"Current weather at location ({latitude}, {longitude}): "
+                f"Temperature: {temp_f}°F (High: {high_f}°F, Low: {low_f}°F), "
+                f"Condition: {condition}, "
+                f"Humidity: {humidity}%, "
+                f"Wind Speed: {wind_mph} mph"
+            )
+            
+            return weather_info
+            
+        except Exception as e:
+            return (
+                f"Weather information for location ({latitude}, {longitude}): "
+                f"(weather API unavailable: {str(e)})"
+            )
+    
+    def _get_weather_condition(self, weather_code: int) -> str:
+        """
+        Map WMO Weather interpretation codes to readable conditions.
+        Reference: https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
+        """
+        if weather_code == 0:
+            return "Clear sky"
+        elif weather_code in [1, 2, 3]:
+            return "Partly cloudy"
+        elif weather_code in [45, 48]:
+            return "Foggy"
+        elif weather_code in [51, 53, 55]:
+            return "Drizzle"
+        elif weather_code in [61, 63, 65]:
+            return "Rain"
+        elif weather_code in [71, 73, 75]:
+            return "Snow"
+        elif weather_code in [80, 81, 82]:
+            return "Rain showers"
+        elif weather_code in [85, 86]:
+            return "Snow showers"
+        elif weather_code in [95, 96, 99]:
+            return "Thunderstorm"
+        else:
+            return "Unknown"
 
     def generate_outfit(
         self,
@@ -113,7 +184,6 @@ class OutfitGeneratorService:
             max_tokens=1024,
             tools=tools,
             tool_choice={"type": "any"},
-            disable_parallel_tool_use=True,
             messages=previous_messages,
         )
 
@@ -127,7 +197,6 @@ class OutfitGeneratorService:
                     max_tokens=4096,
                     tools=tools,
                     tool_choice={"type": "any"},
-                    disable_parallel_tool_use=True,
                     messages=previous_messages,
                 )
                 continue
@@ -145,7 +214,6 @@ class OutfitGeneratorService:
                     max_tokens=1024,
                     tools=tools,
                     tool_choice={"type": "any"},
-                    disable_parallel_tool_use=True,
                     messages=previous_messages,
                 )
                 continue
@@ -157,13 +225,17 @@ class OutfitGeneratorService:
                     tool = content
                     break
 
+            # If no tool use found, check if we have a final response
+            if tool is None:
+                break
+
             # Execute tool
             if tool.name == "get_location":
                 # Forward to iOS frontend; include conversation state so the
                 # frontend can update it and return tool results back to the API.
                 tool_results = [{
                     "type": "tool_result",
-                    "tool_use_id": response.id,
+                    "tool_use_id": tool.id,
                     "content": "No location provided."
                 }]
                 return GenerateOutfitResponse(
@@ -186,7 +258,7 @@ class OutfitGeneratorService:
 
             tool_results = [{
                 "type": "tool_result",
-                "tool_use_id": response.id,
+                "tool_use_id": tool.id,
                 "content": result
             }]
 
@@ -203,7 +275,6 @@ class OutfitGeneratorService:
                 max_tokens=1024,
                 tools=tools,
                 tool_choice={"type": "any"},
-                disable_parallel_tool_use=True,
                 messages=previous_messages
             )
 
