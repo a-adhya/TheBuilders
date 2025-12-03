@@ -64,12 +64,10 @@ struct UploadAvatarView: View {
                 AvatarImagePicker(image: $selectedImage, sourceType: .camera)
             }
             .onChange(of: selectedPhoto) { oldValue, newValue in
-                Task {
+                Task { @MainActor in
                     if let data = try? await newValue?.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
-                        await MainActor.run {
-                            selectedImage = image
-                        }
+                        selectedImage = image
                     }
                 }
             }
@@ -238,7 +236,7 @@ struct UploadAvatarView: View {
 }
 
 // MARK: - Image Picker (Camera)
-struct AvatarImagePicker: UIViewControllerRepresentable {
+fileprivate struct AvatarImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     @Environment(\.dismiss) private var dismiss
     var sourceType: UIImagePickerController.SourceType

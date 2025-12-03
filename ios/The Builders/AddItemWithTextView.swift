@@ -269,10 +269,9 @@ struct AddItemWithTextView: View {
         }
     }
     
+    @MainActor
     private func submitItem() async {
-        await MainActor.run {
-            isSubmitting = true
-        }
+        isSubmitting = true
         
         do {
             // Create GarmentDTO
@@ -293,14 +292,10 @@ struct AddItemWithTextView: View {
             // Refresh wardrobe
             await wardrobeManager.load()
             
-            await MainActor.run {
-                isSubmitting = false
-                showSuccess = true
-            }
+            isSubmitting = false
+            showSuccess = true
         } catch {
-            await MainActor.run {
-                isSubmitting = false
-            }
+            isSubmitting = false
             print("Error creating garment: \(error)")
         }
     }

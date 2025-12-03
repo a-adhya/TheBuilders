@@ -155,26 +155,21 @@ struct ClothingItemDetailView: View {
                     EmptyView()
                 }
             }
-        } else if item.name.contains("T-Shirt") {
-            Image(systemName: "tshirt.fill")
-                .font(.system(size: 150))
-                .foregroundColor(item.color)
-        } else if item.name.contains("Jeans") || item.name.contains("Pants") {
-            RoundedRectangle(cornerRadius: 15)
-                .fill(item.color)
-                .frame(width: 80, height: 160)
-        } else if item.name.contains("Dress") {
-            Image(systemName: "figure.dress.line.vertical.figure")
-                .font(.system(size: 150))
-                .foregroundColor(item.color)
-        } else if item.name.contains("Sneakers") || item.name.contains("Boots") {
-            Image(systemName: "shoeprints.fill")
-                .font(.system(size: 100))
-                .foregroundColor(item.color)
         } else {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 100))
-                .foregroundColor(item.color)
+            // For items without images, show colored rectangle with name
+            // This matches the design for text-only items
+            RoundedRectangle(cornerRadius: 20)
+                .fill(item.color.opacity(0.3))
+                .overlay(
+                    Text(item.name)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundColor(item.color)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                )
+                .frame(width: 260, height: 260)
         }
     }
     

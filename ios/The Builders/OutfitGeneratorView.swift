@@ -205,10 +205,9 @@ struct OutfitGeneratorView: View {
         }
     }
     
+    @MainActor
     private func generateOutfit() async {
-        await MainActor.run {
-            isGenerating = true
-        }
+        isGenerating = true
         
         var contextParts: [String] = []
         if !occasion.isEmpty {
@@ -222,80 +221,34 @@ struct OutfitGeneratorView: View {
         }
         let context = contextParts.joined(separator: ". ")
         
-        // Agentic loop: handle tool requests until we get garments
-        var previousMessages: [[String: Any]]? = nil
-        
-        while true {
-            do {
-                let result = try await outfitAPI.generateOutfit(
-                    context: context,
-                    userId: userId,
-                    previousMessages: previousMessages
-                )
-                
-                switch result {
-                case .garments(let garments):
-                    if garments.isEmpty {
-                        await MainActor.run {
-                            apiResponseBody = "Error: no garments found"
-                            showErrorAlert = true
-                            isGenerating = false
-                        }
-                        return
-                    }
-                    
-                    guard let outfit = garmentsToOutfit(garments: garments) else {
-                        await MainActor.run {
-                            apiResponseBody = "Error: Could not generate outfit from available garments"
-                            showErrorAlert = true
-                            isGenerating = false
-                        }
-                        return
-                    }
-                    
-                    await MainActor.run {
-                        generatedOutfit = outfit
-                        isGenerating = false
-                        navigateToGenerated = true
-                    }
-                    return
-                    
-                case .toolRequest(let messages, let toolName):
-                    if toolName == "get_location" {
-                        let locationService = LocationService()
-                        do {
-                            let (latitude, longitude) = try await locationService.getCurrentLocation()
-                            previousMessages = updateLocationToolResult(
-                                previousMessages: messages,
-                                latitude: latitude,
-                                longitude: longitude
-                            )
-                            continue
-                        } catch {
-                            await MainActor.run {
-                                apiResponseBody = "Failed to get location: \(error.localizedDescription)"
-                                showErrorAlert = true
-                                isGenerating = false
-                            }
-                            return
-                        }
-                    } else {
-                        await MainActor.run {
-                            apiResponseBody = "Unknown tool request: \(toolName)"
-                            showErrorAlert = true
-                            isGenerating = false
-                        }
-                        return
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    apiResponseBody = error.localizedDescription
-                    showErrorAlert = true
-                    isGenerating = false
-                }
+        do {
+            // Call the backend API
+            let garments = try await outfitAPI.generateOutfit(context: context, userId: userId)
+            
+            // Check if we have garments
+            if garments.isEmpty {
+                apiResponseBody = "Error: no garments found"
+                showErrorAlert = true
+                isGenerating = false
                 return
             }
+            
+            // Convert garments to Outfit structure
+            guard let outfit = garmentsToOutfit(garments: garments) else {
+                apiResponseBody = "Error: Could not generate outfit from available garments"
+                showErrorAlert = true
+                isGenerating = false
+                return
+            }
+            
+            generatedOutfit = outfit
+            isGenerating = false
+            navigateToGenerated = true
+        } catch {
+            // Show the API response body in a popup
+            apiResponseBody = error.localizedDescription
+            showErrorAlert = true
+            isGenerating = false
         }
     }
 }

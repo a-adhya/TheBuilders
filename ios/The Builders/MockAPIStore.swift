@@ -509,6 +509,8 @@ private func convertAPICategoryToUICategory(_ apiCategory: Int) -> String {
         return "Shoes"
     case 9: // ACCESSORY
         return "Accessories"
+    case 10: // DRESS
+        return "Dresses"
     default:
         return "Tops" // Default fallback
     }
@@ -521,7 +523,7 @@ private func convertUICategoryToAPICategory(_ uiCategory: String) -> Int {
     case "Bottoms":
         return 5 // Default to JEANS for Bottoms
     case "Dresses":
-        return 6 // Map Dresses to PANTS (no DRESS in API enum)
+        return 10 // Map Dresses to DRESS
     case "Shoes":
         return 8
     case "Accessories":
