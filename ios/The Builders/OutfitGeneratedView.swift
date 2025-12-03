@@ -167,44 +167,35 @@ struct OutfitGeneratedView: View {
         }
     }
     
+    @MainActor
     private func regenerateOutfit() async {
-        await MainActor.run {
-            isRegenerating = true
-            errorMessage = nil
-        }
+        isRegenerating = true
+        errorMessage = nil
         
         do {
             // Call backend with empty context for regeneration
             let garments = try await outfitAPI.generateOutfit(context: "", userId: userId)
             
             if garments.isEmpty {
-                await MainActor.run {
-                    errorMessage = "Error: no garments found"
-                    isRegenerating = false
-                }
+                errorMessage = "Error: no garments found"
+                isRegenerating = false
                 return
             }
             
             // Convert garments to Outfit structure
             guard let outfit = garmentsToOutfit(garments: garments) else {
-                await MainActor.run {
-                    errorMessage = "Error: Could not generate outfit from available garments"
-                    isRegenerating = false
-                }
+                errorMessage = "Error: Could not generate outfit from available garments"
+                isRegenerating = false
                 return
             }
             
-            await MainActor.run {
-                // Update current outfit and navigate to OutfitTryOnView2
-                self.currentOutfit = outfit
-                self.isRegenerating = false
-                self.navigateToRegenerate = true
-            }
+            // Update current outfit and navigate to OutfitTryOnView2
+            currentOutfit = outfit
+            isRegenerating = false
+            navigateToRegenerate = true
         } catch {
-            await MainActor.run {
-                errorMessage = "Error: \(error.localizedDescription)"
-                isRegenerating = false
-            }
+            errorMessage = "Error: \(error.localizedDescription)"
+            isRegenerating = false
             print("Error regenerating outfit: \(error)")
         }
     }

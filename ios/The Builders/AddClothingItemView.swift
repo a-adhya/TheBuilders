@@ -382,66 +382,60 @@ struct AddClothingItemView: View {
     
     // MARK: - Private helpers
     
+    @MainActor
     private func classifyImage() async {
         guard let imageData = uploadImageData else { return }
         
-        await MainActor.run { 
-            isClassifying = true 
-            classificationComplete = false
-            classificationErrorMessage = nil
-        }
+        isClassifying = true
+        classificationComplete = false
+        classificationErrorMessage = nil
         
         do {
             // Get the API instance from WardrobeManager
             let result = try await wardrobeManager.api.classifyImage(imageData)
             
-            await MainActor.run {
-                if result.success {
-                    // Check if confidence is high enough (> 0.6)
-                    let categoryConfident = result.category != nil && result.categoryConfidence > 0.6
-                    let colorConfident = result.colorConfidence > 0.6
-                    
-                    if categoryConfident || colorConfident {
-                        // Update category if detected with good confidence
-                        if let category = result.category, result.categoryConfidence > 0.6 {
-                            selectedCategory = category
-                        }
-                        
-                        // Update color if detected with good confidence
-                        if result.colorConfidence > 0.6 {
-                            selectedColor = Color.fromHex(result.color) ?? selectedColor
-                        }
-                        
-                        classificationComplete = true
-                    } else {
-                        // Confidence too low - show error
-                        classificationErrorMessage = "The AI couldn't confidently identify the clothing item. Please fill out the fields manually."
-                    }
-                } else {
-                    // Classification failed
-                    classificationErrorMessage = "Classification failed. Please fill out the fields manually."
-                }
+            if result.success {
+                // Check if confidence is high enough (> 0.6)
+                let categoryConfident = result.category != nil && result.categoryConfidence > 0.6
+                let colorConfident = result.colorConfidence > 0.6
                 
-                isClassifying = false
+                if categoryConfident || colorConfident {
+                    // Update category if detected with good confidence
+                    if let category = result.category, result.categoryConfidence > 0.6 {
+                        selectedCategory = category
+                    }
+                    
+                    // Update color if detected with good confidence
+                    if result.colorConfidence > 0.6 {
+                        selectedColor = Color.fromHex(result.color) ?? selectedColor
+                    }
+                    
+                    classificationComplete = true
+                } else {
+                    // Confidence too low - show error
+                    classificationErrorMessage = "The AI couldn't confidently identify the clothing item. Please fill out the fields manually."
+                }
+            } else {
+                // Classification failed
+                classificationErrorMessage = "Classification failed. Please fill out the fields manually."
             }
+            
+            isClassifying = false
         } catch {
-            await MainActor.run {
-                isClassifying = false
-                classificationErrorMessage = "Unable to analyze image. Please fill out the fields manually."
-                print("Classification failed: \(error)")
-            }
+            isClassifying = false
+            classificationErrorMessage = "Unable to analyze image. Please fill out the fields manually."
+            print("Classification failed: \(error)")
         }
     }
     
+    @MainActor
     private func submitItem() async {
         guard let imageData = uploadImageData else {
-            await MainActor.run {
-                errorMessage = "Please select an image before submitting."
-            }
+            errorMessage = "Please select an image before submitting."
             return
         }
         
-        await MainActor.run { isSubmitting = true }
+        isSubmitting = true
         
         do {
             let garment = GarmentDTO(
@@ -457,21 +451,17 @@ struct AddClothingItemView: View {
             
             _ = try await wardrobeManager.createGarment(garment, imageData: imageData)
             
-            await MainActor.run {
-                isSubmitting = false
-                onGarmentCreated?()
-                dismiss()
-            }
+            isSubmitting = false
+            onGarmentCreated?()
+            dismiss()
         } catch {
-            await MainActor.run {
-                isSubmitting = false
-                errorMessage = error.localizedDescription
-            }
+            isSubmitting = false
+            errorMessage = error.localizedDescription
         }
     }
 }
 
-}
+
 
 // MARK: - Color Extension
 extension Color {

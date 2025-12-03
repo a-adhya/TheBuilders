@@ -50,58 +50,31 @@ struct ClothingItemCard: View {
     
     @ViewBuilder
     private var clothingIcon: some View {
-        if let imageURL = item.imageURL {
+        // Check if we have a valid imageURL
+        if let imageURL = item.imageURL, !imageURL.absoluteString.isEmpty {
             remoteImageView(for: imageURL)
-        } else if item.name.contains("T-Shirt") {
-            // T-Shirt icon
-            Image(systemName: "tshirt.fill")
-                .font(.system(size: 60))
-                .foregroundColor(item.color)
-        } else if item.name.contains("Jeans") || item.name.contains("Pants") {
-            // Pants icon
-            RoundedRectangle(cornerRadius: 8)
-                .fill(item.color)
-                .frame(width: 40, height: 80)
-        } else if item.name.contains("Dress") {
-            // Dress icon
-            Image(systemName: "figure.dress.line.vertical.figure")
-                .font(.system(size: 60))
-                .foregroundColor(item.color)
-        } else if item.name.contains("Sneakers") || item.name.contains("Boots") {
-            // Shoe icon
-            Image(systemName: "shoeprints.fill")
-                .font(.system(size: 40))
-                .foregroundColor(item.color)
         } else {
-            // For text-only items, show name in a rectangular box
-            // Check if this looks like a text-only item (no common keywords)
-            let hasImagePattern = item.name.contains("T-Shirt") || 
-                                   item.name.contains("Jeans") || 
-                                   item.name.contains("Pants") || 
-                                   item.name.contains("Dress") || 
-                                   item.name.contains("Sneakers") || 
-                                   item.name.contains("Boots")
-            
-            if !hasImagePattern {
-                // Text-only item: show name in rectangular box
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(item.color.opacity(0.3))
-                    .overlay(
-                        Text(item.name)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(item.color)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                            .padding(8)
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Generic accessory icon
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(item.color)
-            }
+            // For items without images, always show colored rectangle with name
+            // This matches the design shown (green/blue rectangle with "Shirt1"/"Shirt")
+            coloredRectangleView
         }
+    }
+    
+    @ViewBuilder
+    private var coloredRectangleView: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(item.color.opacity(0.3))
+            .overlay(
+                Text(item.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(item.color)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(8)
     }
     
     @ViewBuilder
@@ -119,11 +92,10 @@ struct ClothingItemCard: View {
                     .frame(width: 150, height: 150)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
             case .failure:
-                Image(systemName: "photo")
-                    .font(.system(size: 50))
-                    .foregroundColor(.gray)
+                // If image fails to load, fall back to colored rectangle with name
+                coloredRectangleView
             @unknown default:
-                EmptyView()
+                coloredRectangleView
             }
         }
     }

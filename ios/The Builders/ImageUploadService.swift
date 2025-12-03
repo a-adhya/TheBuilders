@@ -1,7 +1,6 @@
 import Foundation
 
 /// Lightweight helper responsible for uploading, updating, and deleting images directly to/from MinIO/S3-compatible storage.
-/// This keeps the backend agnostic of binary uploads while ensuring the frontend can control retries/errors.
 struct ImageUploadService {
     static let shared = ImageUploadService()
     

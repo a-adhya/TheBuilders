@@ -351,7 +351,7 @@ struct FeedbackView: View {
             PHPickerViewControllerWrapper(images: $selectedImages)
         }
         .sheet(isPresented: $showCamera) {
-            ImagePicker(images: $selectedImages, sourceType: .camera)
+            CameraImagePicker(images: $selectedImages, sourceType: .camera)
         }
     }
 
@@ -385,7 +385,7 @@ struct FeedbackView: View {
         messages.append(userMessage)
         
         // Call the chat API
-        Task {
+        Task { @MainActor in
             do {
                 // If there are images, upload them to S3 first
                 var imageURLs: [String] = []
@@ -428,18 +428,14 @@ struct FeedbackView: View {
                     weatherData: weatherData
                 )
                 
-                // Update UI on main thread
-                await MainActor.run {
-                    messages.append(ChatMessage(role: .assistant, text: response))
-                    isSending = false
-                }
+                // Update UI
+                messages.append(ChatMessage(role: .assistant, text: response))
+                isSending = false
             } catch {
-                // Handle error on main thread
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    showError = true
-                    isSending = false
-                }
+                // Handle error
+                errorMessage = error.localizedDescription
+                showError = true
+                isSending = false
             }
         }
     }
@@ -460,7 +456,7 @@ struct FeedbackView: View {
 
 // MARK: - Image Picker
 
-struct ImagePicker: UIViewControllerRepresentable {
+fileprivate struct CameraImagePicker: UIViewControllerRepresentable {
     @Binding var images: [UIImage]
     var sourceType: UIImagePickerController.SourceType
     @Environment(\.dismiss) private var dismiss
@@ -480,9 +476,9 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+        let parent: CameraImagePicker
         
-        init(_ parent: ImagePicker) {
+        init(_ parent: CameraImagePicker) {
             self.parent = parent
         }
         

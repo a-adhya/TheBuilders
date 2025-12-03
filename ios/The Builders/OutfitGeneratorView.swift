@@ -205,10 +205,9 @@ struct OutfitGeneratorView: View {
         }
     }
     
+    @MainActor
     private func generateOutfit() async {
-        await MainActor.run {
-            isGenerating = true
-        }
+        isGenerating = true
         
         // Build context string from form fields
         var contextParts: [String] = []
@@ -229,36 +228,28 @@ struct OutfitGeneratorView: View {
             
             // Check if we have garments
             if garments.isEmpty {
-                await MainActor.run {
-                    apiResponseBody = "Error: no garments found"
-                    showErrorAlert = true
-                    isGenerating = false
-                }
+                apiResponseBody = "Error: no garments found"
+                showErrorAlert = true
+                isGenerating = false
                 return
             }
             
             // Convert garments to Outfit structure
             guard let outfit = garmentsToOutfit(garments: garments) else {
-                await MainActor.run {
-                    apiResponseBody = "Error: Could not generate outfit from available garments"
-                    showErrorAlert = true
-                    isGenerating = false
-                }
+                apiResponseBody = "Error: Could not generate outfit from available garments"
+                showErrorAlert = true
+                isGenerating = false
                 return
             }
             
-            await MainActor.run {
-                generatedOutfit = outfit
-                isGenerating = false
-                navigateToGenerated = true
-            }
+            generatedOutfit = outfit
+            isGenerating = false
+            navigateToGenerated = true
         } catch {
-            await MainActor.run {
-                // Show the API response body in a popup
-                apiResponseBody = error.localizedDescription
-                showErrorAlert = true
-                isGenerating = false
-            }
+            // Show the API response body in a popup
+            apiResponseBody = error.localizedDescription
+            showErrorAlert = true
+            isGenerating = false
         }
     }
 }

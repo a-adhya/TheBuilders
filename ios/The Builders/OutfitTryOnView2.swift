@@ -135,41 +135,32 @@ struct OutfitTryOnView2: View {
         }
     }
     
+    @MainActor
     private func regenerateOutfit() async {
-        await MainActor.run {
-            isRegenerating = true
-        }
+        isRegenerating = true
         
         do {
             // Call backend with empty context for regeneration
             let garments = try await outfitAPI.generateOutfit(context: "", userId: userId)
             
             if garments.isEmpty {
-                await MainActor.run {
-                    self.isRegenerating = false
-                }
+                isRegenerating = false
                 print("Error: no garments found")
                 return
             }
             
             // Convert garments to Outfit structure
             guard let newOutfit = garmentsToOutfit(garments: garments) else {
-                await MainActor.run {
-                    self.isRegenerating = false
-                }
+                isRegenerating = false
                 print("Error: Could not generate outfit from available garments")
                 return
             }
             
-            await MainActor.run {
-                // Update the current outfit in place instead of navigating
-                self.currentOutfit = newOutfit
-                self.isRegenerating = false
-            }
+            // Update the current outfit in place instead of navigating
+            currentOutfit = newOutfit
+            isRegenerating = false
         } catch {
-            await MainActor.run {
-                self.isRegenerating = false
-            }
+            isRegenerating = false
             print("Error regenerating outfit: \(error)")
         }
     }
