@@ -399,6 +399,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs access to your camera to take photos of clothing items for your wardrobe.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to provide weather-based outfit recommendations.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app needs access to save images to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to select images of clothing items for your wardrobe.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -434,6 +435,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs access to your camera to take photos of clothing items for your wardrobe.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to provide weather-based outfit recommendations.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app needs access to save images to your photo library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to select images of clothing items for your wardrobe.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

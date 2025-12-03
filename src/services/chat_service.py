@@ -1,6 +1,8 @@
 from typing import List
 from anthropic import Anthropic
 from dotenv import load_dotenv
+import base64
+import httpx
 import os
 
 
@@ -21,6 +23,26 @@ class ChatService:
         messages: list of objects like {"role": "user"|"assistant", "content": str}.
         Returns concatenated text blocks from the assistant response.
         """
+
+        for msg in messages:
+            if msg.get("role") == "user" and isinstance(msg.get("content"), list):
+                for item in msg["content"]:
+                    if isinstance(item, dict) and item.get("type") == "image":
+                        src = item.get("source") or {}
+                        if src.get("type") == "base64":
+                            continue  # already have base64 data
+                        image_url = src.get("url")
+                        if not image_url:
+                            continue  # nothing to fetch
+                        image_media_type = "image/jpeg"
+                        image_data = base64.standard_b64encode(
+                            httpx.get(image_url).content).decode("utf-8")
+                        item["source"] = {
+                            "type": "base64",
+                            "media_type": image_media_type,
+                            "data": image_data,
+                        }
+
         kwargs = {
             "model": "claude-haiku-4-5-20251001",
             "max_tokens": 1000,
@@ -28,7 +50,10 @@ class ChatService:
             "system": "You are a fashion expert tasked with providing expert fashion advice"
         }
 
-        response = self.client.messages.create(**kwargs)
+        try:
+            response = self.client.messages.create(**kwargs)
+        except Exception as e:
+            raise Exception("Error: Anthropic API error") from e
 
         # Collect text pieces from the response content
         pieces: List[str] = []

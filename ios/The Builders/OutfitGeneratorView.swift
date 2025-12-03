@@ -209,7 +209,6 @@ struct OutfitGeneratorView: View {
     private func generateOutfit() async {
         isGenerating = true
         
-        // Build context string from form fields
         var contextParts: [String] = []
         if !occasion.isEmpty {
             contextParts.append("Occasion: \(occasion)")

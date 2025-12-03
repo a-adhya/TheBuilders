@@ -80,8 +80,13 @@ enum APIMaterial: Int {
 // MARK: - Outfit API
 // This follows the actual API structure from src/api/schema.py and src/models/enums.py
 
+enum OutfitGenerationResult {
+    case garments([GarmentDTO])
+    case toolRequest(previousMessages: [[String: Any]], toolName: String)
+}
+
 protocol OutfitAPI {
-    func generateOutfit(context: String, userId: Int) async throws -> [GarmentDTO]
+    func generateOutfit(context: String, userId: Int, previousMessages: [[String: Any]]?) async throws -> OutfitGenerationResult
 }
 
 final class RealOutfitAPI: OutfitAPI {
@@ -91,22 +96,24 @@ final class RealOutfitAPI: OutfitAPI {
         self.baseURL = baseURL
     }
     
-    func generateOutfit(context: String, userId: Int) async throws -> [GarmentDTO] {
-        guard let url = URL(string: "\(baseURL)/generate_outfit?user_id=\(userId)") else {
+    func generateOutfit(context: String, userId: Int, previousMessages: [[String: Any]]? = nil) async throws -> OutfitGenerationResult {
+        guard let url = URL(string: "\(baseURL)/generate/\(userId)") else {
             throw URLError(.badURL)
         }
-        
-        // Create request body
-        struct GenerateOutfitRequest: Codable {
-            let optional_string: String?
-        }
-        
-        let requestBody = GenerateOutfitRequest(optional_string: context.isEmpty ? nil : context)
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(requestBody)
+        
+        // Build JSON body with proper encoding for dictionaries
+        var jsonBody: [String: Any] = [:]
+        if !context.isEmpty {
+            jsonBody["optional_string"] = context
+        }
+        if let messages = previousMessages {
+            jsonBody["previous_messages"] = messages
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: jsonBody)
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -115,94 +122,111 @@ final class RealOutfitAPI: OutfitAPI {
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 500 {
-                // Check if it's a "no garments" error
-                if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
-                   let detail = errorData["detail"],
-                   detail.contains("no garments") || detail.contains("No garments") {
-                    return [] // Return empty array for no garments
-                }
-            }
-            // Capture the response body as a string for error display
             let responseBody = String(data: data, encoding: .utf8) ?? "Unable to decode response"
             throw NSError(domain: "RealOutfitAPI", code: httpResponse.statusCode, userInfo: [
                 NSLocalizedDescriptionKey: responseBody
             ])
         }
         
-        // Decode API response
-        struct GenerateOutfitResponse: Codable {
-            let garments: [OutfitAPIGarmentResponse]
+        // Decode API response - first check response_type
+        let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let responseType = jsonResponse?["response_type"] as? String else {
+            throw NSError(domain: "RealOutfitAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing response_type in response"])
         }
         
-        struct OutfitAPIGarmentResponse: Codable {
-            let id: Int
-            let owner: Int
-            let category: Int
-            let material: Int
-            let color: String
-            let name: String
-            let image_url: String
-            let dirty: Bool
-            let created_at: String
-            
-            func toDTO() -> GarmentDTO {
-                // Convert API category to UI category
-                let uiCategory: String
-                switch category {
-                case 1, 2, 3, 4: // SHIRT, TSHIRT, JACKET, SWEATER
-                    uiCategory = "Tops"
-                case 5, 6, 7: // JEANS, PANTS, SHORTS
-                    uiCategory = "Bottoms"
-                case 8: // SHOES
-                    uiCategory = "Shoes"
-                case 9: // ACCESSORY
-                    uiCategory = "Accessories"
-                default:
-                    uiCategory = "Tops"
-                }
-                
-                // Convert API material to string
-                let materialString: String
-                switch material {
-                case 1: materialString = "Cotton"
-                case 2: materialString = "Denim"
-                case 3: materialString = "Wool"
-                case 4: materialString = "Corduroy"
-                case 5: materialString = "Silk"
-                case 6: materialString = "Satin"
-                case 7: materialString = "Leather"
-                case 8: materialString = "Athletic"
-                default: materialString = "Cotton"
-                }
-                
-                // Convert hex color to SwiftUI Color
-                var hexSanitized = color.trimmingCharacters(in: .whitespacesAndNewlines)
-                hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-                var rgb: UInt64 = 0
-                Scanner(string: hexSanitized).scanHexInt64(&rgb)
-                let r = Double((rgb & 0xFF0000) >> 16) / 255.0
-                let g = Double((rgb & 0x00FF00) >> 8) / 255.0
-                let b = Double(rgb & 0x0000FF) / 255.0
-                let swiftColor = Color(red: r, green: g, blue: b)
-                
-                return GarmentDTO(
-                    id: id,
-                    owner: String(owner),
-                    category: uiCategory,
-                    color: swiftColor,
-                    name: name,
-                    material: materialString,
-                    imageURL: URL(string: image_url),
-                    dirty: dirty
-                )
+        if responseType == "tool_request" {
+            // Extract tool name from previous_messages
+            guard let previousMessages = jsonResponse?["previous_messages"] as? [[String: Any]] else {
+                throw NSError(domain: "RealOutfitAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing previous_messages in tool_request"])
             }
+            
+            // Find the tool name from the last assistant message
+            var toolName = "get_location" // Default
+            if let lastAssistant = previousMessages.last(where: { ($0["role"] as? String) == "assistant" }),
+               let content = lastAssistant["content"] as? [[String: Any]],
+               let toolUse = content.first(where: { ($0["type"] as? String) == "tool_use" }),
+               let name = toolUse["name"] as? String {
+                toolName = name
+            }
+            
+            return .toolRequest(previousMessages: previousMessages, toolName: toolName)
+        } else if responseType == "garments" {
+            // Decode garments
+            struct GenerateOutfitResponse: Codable {
+                let response_type: String
+                let garments: [OutfitAPIGarmentResponse]
+            }
+            
+            struct OutfitAPIGarmentResponse: Codable {
+                let id: Int
+                let owner: Int
+                let category: Int
+                let material: Int
+                let color: String
+                let name: String
+                let image_url: String
+                let dirty: Bool
+                let created_at: String
+                
+                func toDTO() -> GarmentDTO {
+                    // Convert API category to UI category
+                    let uiCategory: String
+                    switch category {
+                    case 1, 2, 3, 4: // SHIRT, TSHIRT, JACKET, SWEATER
+                        uiCategory = "Tops"
+                    case 5, 6, 7: // JEANS, PANTS, SHORTS
+                        uiCategory = "Bottoms"
+                    case 8: // SHOES
+                        uiCategory = "Shoes"
+                    case 9: // ACCESSORY
+                        uiCategory = "Accessories"
+                    default:
+                        uiCategory = "Tops"
+                    }
+                    
+                    // Convert API material to string
+                    let materialString: String
+                    switch material {
+                    case 1: materialString = "Cotton"
+                    case 2: materialString = "Denim"
+                    case 3: materialString = "Wool"
+                    case 4: materialString = "Corduroy"
+                    case 5: materialString = "Silk"
+                    case 6: materialString = "Satin"
+                    case 7: materialString = "Leather"
+                    case 8: materialString = "Athletic"
+                    default: materialString = "Cotton"
+                    }
+                    
+                    // Convert hex color to SwiftUI Color
+                    var hexSanitized = color.trimmingCharacters(in: .whitespacesAndNewlines)
+                    hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+                    var rgb: UInt64 = 0
+                    Scanner(string: hexSanitized).scanHexInt64(&rgb)
+                    let r = Double((rgb & 0xFF0000) >> 16) / 255.0
+                    let g = Double((rgb & 0x00FF00) >> 8) / 255.0
+                    let b = Double(rgb & 0x0000FF) / 255.0
+                    let swiftColor = Color(red: r, green: g, blue: b)
+                    
+                    return GarmentDTO(
+                        id: id,
+                        owner: String(owner),
+                        category: uiCategory,
+                        color: swiftColor,
+                        name: name,
+                        material: materialString,
+                        imageURL: URL(string: image_url),
+                        dirty: dirty
+                    )
+                }
+            }
+            
+            let apiResponse = try JSONDecoder().decode(GenerateOutfitResponse.self, from: data)
+            let garments = apiResponse.garments.map { $0.toDTO() }
+            return .garments(garments)
+        } else {
+            throw NSError(domain: "RealOutfitAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown response_type: \(responseType)"])
         }
-        
-        let apiResponse = try JSONDecoder().decode(GenerateOutfitResponse.self, from: data)
-        
-        // Convert API garments to DTOs
-        return apiResponse.garments.map { $0.toDTO() }
     }
 }
 
@@ -215,7 +239,7 @@ final class MockOutfitAPI: OutfitAPI {
         self.latencyMs = latencyMs
     }
     
-    func generateOutfit(context: String, userId: Int) async throws -> [GarmentDTO] {
+    func generateOutfit(context: String, userId: Int, previousMessages: [[String: Any]]? = nil) async throws -> OutfitGenerationResult {
         // For mock, ignore context and userId, just return mock garments
         try await Task.sleep(nanoseconds: latencyMs * 1_000_000)
         
@@ -242,7 +266,8 @@ final class MockOutfitAPI: OutfitAPI {
             outfit.append(accessory)
         }
         
-        return outfit
+        // Mock always returns garments (no tool requests)
+        return .garments(outfit)
     }
     
     // Legacy method for backward compatibility (deprecated)
