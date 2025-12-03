@@ -29,6 +29,8 @@ class ChatService:
                 for item in msg["content"]:
                     if isinstance(item, dict) and item.get("type") == "image":
                         src = item.get("source") or {}
+                        if src.get("type") == "base64":
+                            continue  # already have base64 data
                         image_url = src.get("url")
                         if not image_url:
                             continue  # nothing to fetch
