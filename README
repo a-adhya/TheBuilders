@@ -1,73 +1,14 @@
-# Backend & Code Architecture
+# UM EECS 498-002 F25 The Builders
 
-## Running the App
+| Video  |  Wiki |  Agile |
+|:-----:|:-----:|:--------:|
+|[<img src="https://eecs441.eecs.umich.edu/img/admin/video.png">][video]|[<img src="https://eecs441.eecs.umich.edu/img/admin/wiki.png">][wiki]|[<img src="https://eecs441.eecs.umich.edu/img/admin/trello.png">][agile]|
+<!-- reusing the icons from eecs441 -->
 
-To run the app, you must run a **local MySQL container** and the **API server** provided via a FastAPI app.
+![Elevator Pitch](https://raw.githubusercontent.com/a-adhya/TheBuilders/main/.github/images/elevator-pitch.png) <!-- MUST be placed in publicly accessible github -->
+![Team](/assets/team.png)
 
-### 1. Set up the Docker container
-Run the following command from the repo root (ensure you have a Docker daemon running):
+[video]: https://youtu.be/7JrqA1JDdiA
+[wiki]: https://github.com/a-adhya/TheBuilders/wiki
+[agile]: https://trello.com/b/tKt9rX01/the-builders <!-- MUST be made public –>
 
-```bash
-docker-compose up -d
-```
-
-### 2. Run the API server
-Start the FastAPI app locally:
-
-**For local development (simulator):**
-```bash
-poetry run uvicorn api.server:app --reload --host 127.0.0.1 --port 8000
-```
-
-**For iPhone testing (physical device):**
-```bash
-poetry run uvicorn api.server:app --reload --host 0.0.0.0 --port 8000
-```
-
-Once started, the API server will be accessible at:
-- **Local:** http://127.0.0.1:8000/
-- **Network:** http://YOUR_IP_ADDRESS:8000/ (replace with your computer's IP)
-
----
-
-## Code  Architecture
-
-We divide the backend into separate layers — **API**, **Service**, and **DB**.  
-Each layer maintains a single responsibility; this architecture was chosen to keep code easy to test and reason about.
-
----
-
-### **1. API Layer**
-The API Layer handles receiving requests and validating them.  
-An example of this is:
-
->“The API layer should catch when a given color submitted is not a valid hex string.”
-
----
-
-### **2. Service Layer**
-The API uses services to carry out core business logic.  
-Note, “services” are merely an interface and do not indicate a separate machine.  
-Business logic encompasses the “core” of what any given method should do.  
-
-An example of this is:
-
->“When we tell the `GarmentService` to create a garment, it should handle persisting the garment info to the DB and the image to the blob storage.”
-
----
-
-### **3. DB Layer**
-The last layer is the DB logic, which handles the actual retrieval and persistence of data.  
-An example of this is:
-
->“The DB layer should interact with MySQL to persist data.”
-
-### **4. Whole Flow Tied Together**
-
-> "When a user wants to create a garment, the API receives the request and validates it. This is then sent to the Garment Service which handles coordinating the business logic (persisting the data to MySQL and Blob Storage). The Garment Service relies on the DB layer to handle the abstraction of actually persisting data to some data store."
-
----
-
-## Code Architecture Diagram
-
-![Architecture Diagram](architecture.png)
