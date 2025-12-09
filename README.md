@@ -10,5 +10,5 @@
 
 [video]: https://youtu.be/7JrqA1JDdiA
 [wiki]: https://github.com/a-adhya/TheBuilders/wiki
-[agile]: https://trello.com/b/tKt9rX01/the-builders <!-- MUST be made public –>
+[agile]: https://trello.com/b/tKt9rX01/the-builders
 
